@@ -1,0 +1,62 @@
+
+- NASM Map file ---------------------------------------------------------------
+
+Source file:  initsmp.asm
+Output file:  initsmp
+
+-- Symbols --------------------------------------------------------------------
+
+---- No Section ---------------------------------------------------------------
+
+Value     Name
+00001000  kstack_loc
+
+
+---- Section .text ------------------------------------------------------------
+
+Real              Virtual           Name
+          400000            400000  header
+          400020            400020  announce
+          40002A            40002A  cpu486
+          400037            400037  cpu586
+          40003C            40003C  cpuintl
+          400043            400043  cpuamd
+          400048            400048  cpuxxx
+          400057            400057  cpunoid
+          400060            400060  cpuapic
+          400069            400069  cpunoapic
+          400072            400072  cpulapic
+          400079            400079  cpunolapic
+          400082            400082  cpux2apix
+          40008A            40008A  cpuvmx
+          40008F            40008F  cpuavil
+          400099            400099  cpuunavil
+          4000A5            4000A5  cpuzzz
+          4000A7            4000A7  puts
+          4000A7            4000A7  puts_loop
+          4000B3            4000B3  puts_done
+          4000B4            4000B4  putbx
+          4000C3            4000C3  putx
+          4000C8            4000C8  putx_loop
+          4000D6            4000D6  putx_hexdigit
+          4000D8            4000D8  putx_putc
+          4000EA            4000EA  start
+          400168            400168  cpu_recognized
+          4001FD            4001FD  no_x2apic
+          40027D            40027D  no_vmx
+          400291            400291  no_topology
+          400293            400293  i_am_non_boot_cpu
+          400298            400298  cpuid_last_puts
+          40029D            40029D  cpuid_end
+
+---- Section .data ------------------------------------------------------------
+
+Real              Virtual           Name
+          401000            401000  print_buf
+          401200            401200  level
+          401204            401204  feature_ebx
+          401208            401208  feature_ecx
+          40120C            40120C  feature_edx
+          401210            401210  id_buf
+          402000            402000  end
+

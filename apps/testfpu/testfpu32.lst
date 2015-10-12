@@ -1,0 +1,40 @@
+
+testfpu32.o:     file format elf32-i386
+
+
+Disassembly of section .text:
+
+00000000 <_start>:
+   0:	9b db e3             	finit  
+   3:	e8 fc ff ff ff       	call   4 <_start+0x4>
+   8:	cf                   	iret   
+   9:	e9 fd ff ff ff       	jmp    b <_start+0xb>
+   e:	c3                   	ret    
+   f:	90                   	nop
+
+00000010 <print_double>:
+  10:	dd 44 24 04          	fldl   0x4(%esp)
+  14:	dd 1d 00 00 00 00    	fstpl  0x0
+  1a:	c3                   	ret    
+
+Disassembly of section .text.startup:
+
+00000000 <main>:
+   0:	8d 4c 24 04          	lea    0x4(%esp),%ecx
+   4:	83 e4 f0             	and    $0xfffffff0,%esp
+   7:	ff 71 fc             	pushl  -0x4(%ecx)
+   a:	55                   	push   %ebp
+   b:	89 e5                	mov    %esp,%ebp
+   d:	51                   	push   %ecx
+   e:	83 ec 0c             	sub    $0xc,%esp
+  11:	6a 03                	push   $0x3
+  13:	68 00 00 00 00       	push   $0x0
+  18:	e8 fc ff ff ff       	call   19 <main+0x19>
+  1d:	dd 1c 24             	fstpl  (%esp)
+  20:	e8 fc ff ff ff       	call   21 <main+0x21>
+  25:	8b 4d fc             	mov    -0x4(%ebp),%ecx
+  28:	83 c4 10             	add    $0x10,%esp
+  2b:	31 c0                	xor    %eax,%eax
+  2d:	c9                   	leave  
+  2e:	8d 61 fc             	lea    -0x4(%ecx),%esp
+  31:	c3                   	ret    

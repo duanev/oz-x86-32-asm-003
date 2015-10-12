@@ -1,0 +1,38 @@
+     1                                  ; OZ - A more utopian OS
+     2                                  ; ex: set expandtab softtabstop=4 shiftwidth=4 nowrap :
+     3                                  ;
+     4                                  ;
+     5                                  ;       nullapp - marks the end of OZ startup apps
+     6                                  ;
+     7                                  ;
+     8                                  ; requires: nasm-2.07  or later from: http://www.nasm.us
+     9                                  ;
+    10                                  ; contributors:
+    11                                  ;        djv - Duane Voth
+    12                                  ;
+    13                                  ; history:
+    14                                  ; 2015/09/18 - 0.00.01 - djv - original
+    15                                  
+    16                                  bits 32
+    17                                  org 0x400000                    ; ozapp program load address
+    18                                  
+    19                                  ; ozapp header
+    20                                  
+    21                                  header :
+    22 00000000 0000000000000000            db  0,0,0,0,0,0,0,0
+    23 00000008 0000                        dw  0
+    24 0000000A 0000                        dw  0
+    25 0000000C 0000                        dw  0
+    26 0000000E 0000                        dw  0
+    27 00000010 0000000000000000            dq  0
+    28 00000018 0000000000000000            dq  0
+    29                                  
+    30                                      ; all boot apps attached to the kernel must be
+    31                                      ; a multiple of a page in length.
+    32                                  
+    33                                  ;   align 4096
+    34                                  
+    35                                  ;   times 4096-($-$$) db 0x90
+    36                                  
+    37                                  ;end :
+    38                                  

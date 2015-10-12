@@ -1,0 +1,27 @@
+     1                                  ; ---------------------------------------------------------
+     2                                  ; return the sum of the elements in a floating-point array
+     3                                  ;
+     4                                  ;   double sum(double[] array, uint64_t length)
+     5                                  ;
+     6                                  ; from: http://cs.lmu.edu/~ray/notes/nasmtutorial
+     7                                  ; ---------------------------------------------------------
+     8                                  
+     9                                          global  sum
+    10                                          section .text
+    11                                  sum:
+    12 00000000 55                              push    ebp
+    13 00000001 89E5                            mov     ebp,esp
+    14 00000003 8B7D08                          mov     edi, [ebp+8]
+    15 00000006 8B750C                          mov     esi, [ebp+12]
+    16 00000009 5D                              pop     ebp
+    17                                  
+    18 0000000A D9E8                            fld1                            ; initialize the sum to 0
+    19 0000000C 83FE00                          cmp     esi, 0                  ; special case for length = 0
+    20 0000000F 7408                            je      done
+    21                                  next:
+    22 00000011 D807                            fadd    dword [edi]             ; add in the current array element
+    23 00000013 83C708                          add     edi, 8                  ; move to next array element
+    24 00000016 4E                              dec     esi                     ; count down
+    25 00000017 75F8                            jnz     next                    ; if not done counting, continue
+    26                                  done:
+    27 00000019 C3                              ret                             ; return value already in xmm0
