@@ -87,17 +87,17 @@ Real              Virtual           Name
             7C00              7C00  bios_entry
             7C06              7C06  oemid
             7C24              7C24  load_stage2
-            7C6F              7C6F  stage2_present
-            7C74              7C74  ioerr
-            7C79              7C79  s2err
-            7C7C              7C7C  print_err
-            7C8E              7C8E  hang
-            7C91              7C91  puts_vga_rm
-            7C96              7C96  puts_vga_rm_loop
-            7CA4              7CA4  puts_vga_rm_done
-            7CA5              7CA5  bootmsg
-            7CBF              7CBF  s2errmsg
-            7CD5              7CD5  ioerrmsg
+            7C81              7C81  stage2_present
+            7C86              7C86  ioerr
+            7C8B              7C8B  s2err
+            7C8E              7C8E  print_err
+            7CA0              7CA0  hang
+            7CA3              7CA3  puts_vga_rm
+            7CA8              7CA8  puts_vga_rm_loop
+            7CB6              7CB6  puts_vga_rm_done
+            7CB7              7CB7  bootmsg
+            7CD1              7CD1  s2errmsg
+            7CE7              7CE7  ioerrmsg
             7DBE              7DBE  tmpstk
             7E00              7E00  stage2
             7E04              7E04  non_boot_cpu_ljmp_instruction

@@ -62,7 +62,7 @@ textstart :
 
 bios_entry :
     cli
-    jmp short load_stage2   ; jump to stage2 loader, skip mbr data struct
+    jmp 0:load_stage2       ; load cs, skip over mbr data struct
 
 times 6-($-$$)  db 0
 oemid db "oz"
@@ -111,6 +111,16 @@ bits 16
 alignb 2
 
 load_stage2 :
+    mov  ax,kstack_loc
+    mov  sp,ax
+    xor  ax,ax
+    mov  ss,ax
+    mov  es,ax
+    mov  ds,ax
+    mov  fs,ax
+    mov  gs,ax
+    cld
+
     push dx                 ; save BIOS drive number
 
     mov  ax,0x0600          ; ah=6 scroll window up, if al = 0 clrscr
