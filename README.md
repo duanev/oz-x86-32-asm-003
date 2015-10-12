@@ -18,14 +18,14 @@ tested on: Arch Linux 2015
 
 
 ============ Files ============
-oz.asm      - main
-ozirq.asm   - interrupt handlers and setup
-ozsys.asm   - system calls
-oz_fd       - oz binary for floppy discs (first few sectors)
-oz_fd.img   - oz binary for floppy discs (entire 1.44MB image)
-oz_usb      - oz binary for a 129MB usb stick
-usbptbl.inc - the partition table I used for some usb stick
-              (adjust it if you need)
+    oz.asm      - main
+    ozirq.asm   - interrupt handlers and setup
+    ozsys.asm   - system calls
+    oz_fd       - oz binary for floppy discs (first few sectors)
+    oz_fd.img   - oz binary for floppy discs (entire 1.44MB image)
+    oz_usb      - oz binary for a 129MB usb stick
+    usbptbl.inc - the partition table I used for some usb stick
+                  (adjust it if you need)
 
 ============ Build / Run ======
 
