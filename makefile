@@ -1,10 +1,5 @@
 
-# first shot at debugging: pick a minimal set of init apps.
-# the first 'apps' runs on almost all the hardware I have,
-# the Centrino can run them all, but not an Athelon or i7.
-# qemu is apparently more generous with malformed selectors
-# and tss structs, and has been running everything for a while,
-# at least up to -smp 8
+# as a first shot at debugging: pick a minimal set of init apps
 
 #apps = apps/testvga/testvga32 apps/nullapp/nullapp
 #apps = apps/initsmp/initsmp apps/nullapp/nullapp

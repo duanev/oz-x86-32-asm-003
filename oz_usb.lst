@@ -1829,440 +1829,442 @@
   1829                              <1> ;------------------------------------------------------------------
   1830                              <1> ;   map_pmem - add entries to the current page directory/table
   1831                              <1> ;              to direct map the requested physical memory address
-  1832                              <1> ;
-  1833                              <1> ;   entry:
-  1834                              <1> ;       edx = phys memory address
-  1835                              <1> ;
-  1836                              <1> ;   returns:
-  1837                              <1> ;       (need to return a logical address in eax)  For now just
-  1838                              <1> ;       direct maps the physical address into logical addr space.
-  1839                              <1> ;       eax =  0 success
-  1840                              <1> ;       eax = -1 fail
-  1841                              <1> 
-  1842                              <1> map_pmem :
-  1843 00000F93 60                  <1>     pusha
-  1844 00000F94 52                  <1>     push edx
-  1845 00000F95 0F20DB              <1>     mov  ebx,cr3
-  1846 00000F98 81E300F0FFFF        <1>     and  ebx,0xfffff000
-  1847 00000F9E 89D7                <1>     mov  edi,edx
-  1848 00000FA0 81E70000C0FF        <1>     and  edi,0xffc00000
-  1849 00000FA6 C1EF14              <1>     shr  edi,(22 - 2)           ; calc page directory index
-  1850 00000FA9 81E200F03F00        <1>     and  edx,0x003ff000
-  1851 00000FAF C1EA0A              <1>     shr  edx,(12 - 2)           ; calc page table index
-  1852                              <1> 
-  1853 00000FB2 8B043B              <1>     mov  eax,[ebx+edi]
-  1854 00000FB5 09C0                <1>     or   eax,eax                ; is there a page table here?
-  1855 00000FB7 750F                <1>     jnz  map_pmem_have_pgtbl
-  1856 00000FB9 E892F4FFFF          <1>     call mem_alloc_kernel_page
-  1857 00000FBE 09C0                <1>     or   eax,eax
-  1858 00000FC0 741E                <1>     jz   map_pmem_fail
-  1859 00000FC2 C1E00C              <1>     shl  eax,12                 ; convert pgno to pgtbl entry
-  1860 00000FC5 89043B              <1>     mov  [ebx+edi],eax          ; update page table
-  1861                              <1> 
-  1862                              <1> map_pmem_have_pgtbl :
-  1863                              <1>     ; for now, no security check, just direct map the address
-  1864                              <1>     ; and mark the pages and the page table r/w by all
-  1865 00000FC8 830C3B07            <1>     or   dword [ebx+edi],7      ; user, r/w, present
-  1866                              <1> 
-  1867 00000FCC 8B1C3B              <1>     mov  ebx,[ebx+edi]
-  1868 00000FCF 81E300F0FFFF        <1>     and  ebx,0xfffff000
-  1869 00000FD5 58                  <1>     pop  eax                    ; recover requested phys mem addr
-  1870                              <1>     ; FIXME yup, big security hole if called by ring 0! And it is ...
-  1871 00000FD6 83C807              <1>     or   eax,7                  ; user, r/w, present
-  1872 00000FD9 890413              <1>     mov  [ebx+edx],eax          ; update page directory
-  1873 00000FDC 61                  <1>     popa
-  1874 00000FDD 31C0                <1>     xor  eax,eax                ; 0
-  1875 00000FDF C3                  <1>     ret
-  1876                              <1> 
-  1877                              <1> map_pmem_fail :
-  1878 00000FE0 48                  <1>     dec  eax                    ; -1
-  1879 00000FE1 C3                  <1>     ret
-  1880                              <1> 
-  1881                                  
-  1882 00000FE2 00<rept>                align 16, db 0
-  1883                                  kernel_text_size equ ($-textstart)
-  1884                                  
-  1885                                  ; ---------------------------------------------------------------------------
-  1886                                  section .data
-  1887                                  datastart :
-  1888                                  
-  1889                                  ; -------- descriptors --------------
-  1890                                  ; Intel SW dev manual 3a, 3.4.5, pg 103
-  1891                                  ;
-  1892                                  ; In my opinion, macros for descriptor entries
-  1893                                  ; don't make the code that much more readable.
-  1894                                  
-  1895                                  gdt :
-  1896                                  nullsel equ $-gdt           ; nullsel = 0h
-  1897 00000000 0000000000000000            dd 0,0                  ; first descriptor per convention is 0
-  1898                                  
-  1899                                  codesel equ $-gdt           ; codesel = 8h  4Gb flat over all logical mem
-  1900 00000008 FFFF                        dw 0xffff               ; limit 0-15
-  1901 0000000A 0000                        dw 0x0000               ; base  0-15
-  1902 0000000C 00                          db 0x00                 ; base 16-23
-  1903 0000000D 9A                          db 0x9a                 ; present, dpl=0, code e/r
-  1904 0000000E CF                          db 0xcf                 ; 4k granular, 32bit/8bit, limit 16-19
-  1905 0000000F 00                          db 0x00                 ; base 24-31
-  1906                                  
-  1907                                  datasel equ $-gdt           ; datasel = 10h  4Gb flat over all logical mem
-  1908 00000010 FFFF                        dw 0xffff               ; limit 0-15
-  1909 00000012 0000                        dw 0x0000               ; base  0-15
-  1910 00000014 00                          db 0x00                 ; base 16-23
-  1911 00000015 92                          db 0x92                 ; present, dpl=0, data r/w
-  1912 00000016 CF                          db 0xcf                 ; 4k granular, 32bit/8bit, limit 16-19
-  1913 00000017 00                          db 0x00                 ; base 24-31
-  1914                                  
-  1915                                  stacksel equ $-gdt          ; stacksel = 18h  small limited stack
-  1916 00000018 FF1F                        dw kstack_size-1        ; limit
-  1917 0000001A 0010                        dw kstack_loc           ; base
-  1918 0000001C 00                          db 0
-  1919 0000001D 92                          db 0x92                 ; present, dpl=0, data, r/w
-  1920 0000001E 40                          db 0x40                 ; byte granular, 32bit/8bit
-  1921 0000001F 00                          db 0
-  1922                                  
-  1923                                  videosel equ $-gdt          ; videosel = 20h
-  1924 00000020 9F0F                        dw 3999                 ; limit 80*25*2-1
-  1925 00000022 0080                        dw 0x8000               ; base 0xb8000
-  1926 00000024 0B                          db 0x0b
-  1927 00000025 92                          db 0x92                 ; present, dpl=0, data, r/w
-  1928 00000026 40                          db 0x40                 ; byte granular, 32bit/8bit
-  1929 00000027 00                          db 0
-  1930                                  
-  1931                                  rmcssel equ $-gdt           ; real mode CS selector = 28h
-  1932 00000028 FFFF                        dw 0x0ffff              ; limit 0-15
-  1933 0000002A 0000                        dw 0x0000               ; base  0-15
-  1934 0000002C 00                          db 0x00                 ; base 16-23
-  1935 0000002D 9A                          db 0x9a                 ; present, dpl=0, code e/r
-  1936 0000002E 0F                          db 0x0f                 ; byte granular, 16bit, limit 16-19
-  1937 0000002F 00                          db 0x00                 ; base 24-31
-  1938                                  
-  1939                                  rmdssel equ $-gdt           ; real mode DS selector = 30h
-  1940 00000030 FFFF                        dw 0x0ffff              ; limit 0-15
-  1941 00000032 0000                        dw 0x0000               ; base  0-15
-  1942 00000034 00                          db 0x00                 ; base 16-23
-  1943 00000035 92                          db 0x92                 ; present, dpl=0, data r/w
-  1944 00000036 0F                          db 0x0f                 ; byte granular, 16bit, limit 16-19
-  1945 00000037 00                          db 0x00                 ; base 24-31
-  1946                                  
-  1947                                  ldtsel1 equ $-gdt
-  1948 00000038 1800                        dw ldt1_len             ; length of the ldt
-  1949 0000003A [5001]                      dw ldt1                 ; address of the ldt
-  1950 0000003C 00                          db 0
-  1951 0000003D 82                          db 0x82                 ; present, dpl=0, ldt
-  1952 0000003E 40                          db 0x40                 ; byte granular, 32bit/8bit
-  1953 0000003F 00                          db 0
-  1954                                  
-  1955                                  tasksel_f08 equ $-gdt       ; the double fault task selector
-  1956 00000040 6800                        dw tss_len              ; tss length
-  1957 00000042 [6801]                      dw tss_f08              ; tss physical address
-  1958 00000044 00                          db 0
-  1959 00000045 89                          db 0x89                 ; present, dpl=0, tss32
-  1960 00000046 40                          db 0x40                 ; byte granular, 32bit/8bit
-  1961 00000047 00                          db 0
-  1962                                  
-  1963                                  tasksel_f10 equ $-gdt       ; the invalid tss task selector
-  1964 00000048 6800                        dw tss_len              ; tss length
-  1965 0000004A [D001]                      dw tss_f10              ; tss physical address
-  1966 0000004C 00                          db 0
-  1967 0000004D 89                          db 0x89                 ; present, dpl=0, tss32
-  1968 0000004E 40                          db 0x40                 ; byte granular, 32bit/8bit
-  1969 0000004F 00                          db 0
-  1970                                  
-  1971                                  ; there is one kernel thread tss (ring 0) and one user thread tss (ring 1)
-  1972                                  ; per cpu.  memory for tss structs for the non-boot cpus are allocated as
-  1973                                  ; each non-boot cpu comes online (see create_tss_pair).  tasksel_uXX tss
-  1974                                  ; gates are installed in the idt (starting at first_thread_tss_gate),
-  1975                                  ; they also map 1-to-1 with cpus.  (the thread is launched via an lapic
-  1976                                  ; vectored interrupt that jumps immediately into user space - and to call a
-  1977                                  ; task gate from an interrupt requires an existing ring 0 tss to be active)
-  1978                                  ; tasksel_uXX tsses are initialized in new_thread.
-  1979                                  
-  1980                                  tasksel_k00 equ $-gdt
-  1981 00000050 6800[3802]00894000                              dw tss_len, tss0, 0x8900, 0x40
-  1982                                  tasksel_u00 equ $-gdt
-  1983 00000058 6800[A002]00894000                              dw tss_len, tss1, 0x8900, 0x40
-  1984                                  tasksel_k01 equ $-gdt
-  1985 00000060 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  1986                                  tasksel_u01 equ $-gdt
-  1987 00000068 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  1988                                  tasksel_k02 equ $-gdt
-  1989 00000070 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  1990                                  tasksel_u02 equ $-gdt
-  1991 00000078 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  1992                                  tasksel_k03 equ $-gdt
-  1993 00000080 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  1994                                  tasksel_u03 equ $-gdt
-  1995 00000088 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  1996                                  tasksel_k04 equ $-gdt
-  1997 00000090 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  1998                                  tasksel_u04 equ $-gdt
-  1999 00000098 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2000                                  tasksel_k05 equ $-gdt
-  2001 000000A0 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2002                                  tasksel_u05 equ $-gdt
-  2003 000000A8 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2004                                  tasksel_k06 equ $-gdt
-  2005 000000B0 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2006                                  tasksel_u06 equ $-gdt
-  2007 000000B8 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2008                                  tasksel_k07 equ $-gdt
-  2009 000000C0 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2010                                  tasksel_u07 equ $-gdt
-  2011 000000C8 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2012                                  tasksel_k08 equ $-gdt
-  2013 000000D0 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2014                                  tasksel_u08 equ $-gdt
-  2015 000000D8 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2016                                  tasksel_k09 equ $-gdt
-  2017 000000E0 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2018                                  tasksel_u09 equ $-gdt
-  2019 000000E8 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2020                                  tasksel_k10 equ $-gdt
-  2021 000000F0 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2022                                  tasksel_u10 equ $-gdt
-  2023 000000F8 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2024                                  tasksel_k11 equ $-gdt
-  2025 00000100 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2026                                  tasksel_u11 equ $-gdt
-  2027 00000108 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2028                                  tasksel_k12 equ $-gdt
-  2029 00000110 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2030                                  tasksel_u12 equ $-gdt
-  2031 00000118 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2032                                  tasksel_k13 equ $-gdt
-  2033 00000120 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2034                                  tasksel_u13 equ $-gdt
-  2035 00000128 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2036                                  tasksel_k14 equ $-gdt
-  2037 00000130 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2038                                  tasksel_u14 equ $-gdt
-  2039 00000138 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2040                                  tasksel_k15 equ $-gdt
-  2041 00000140 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2042                                  tasksel_u15 equ $-gdt
-  2043 00000148 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2044                                  gdt_end :
-  2045                                  
-  2046                                  ; ---------------------
+  1832                              <1> ;              (logical identical to physical for now)
+  1833                              <1> ;
+  1834                              <1> ;   entry:
+  1835                              <1> ;       edx = phys memory address
+  1836                              <1> ;
+  1837                              <1> ;   returns:
+  1838                              <1> ;       (need to return a logical address in eax)  For now just
+  1839                              <1> ;       direct maps the physical address into logical addr space.
+  1840                              <1> ;       eax =  0 success
+  1841                              <1> ;       eax = -1 fail
+  1842                              <1> 
+  1843                              <1> map_pmem :
+  1844 00000F93 60                  <1>     pusha
+  1845 00000F94 0F013A              <1>     invlpg [edx]
+  1846 00000F97 52                  <1>     push edx
+  1847 00000F98 0F20DB              <1>     mov  ebx,cr3
+  1848 00000F9B 81E300F0FFFF        <1>     and  ebx,0xfffff000
+  1849 00000FA1 89D7                <1>     mov  edi,edx
+  1850 00000FA3 81E70000C0FF        <1>     and  edi,0xffc00000
+  1851 00000FA9 C1EF14              <1>     shr  edi,(22 - 2)           ; calc page directory index
+  1852 00000FAC 81E200F03F00        <1>     and  edx,0x003ff000
+  1853 00000FB2 C1EA0A              <1>     shr  edx,(12 - 2)           ; calc page table index
+  1854                              <1> 
+  1855 00000FB5 8B043B              <1>     mov  eax,[ebx+edi]
+  1856 00000FB8 09C0                <1>     or   eax,eax                ; is there a page table here?
+  1857 00000FBA 750F                <1>     jnz  map_pmem_have_pgtbl
+  1858 00000FBC E88FF4FFFF          <1>     call mem_alloc_kernel_page
+  1859 00000FC1 09C0                <1>     or   eax,eax
+  1860 00000FC3 741E                <1>     jz   map_pmem_fail
+  1861 00000FC5 C1E00C              <1>     shl  eax,12                 ; convert pgno to pgtbl entry
+  1862 00000FC8 89043B              <1>     mov  [ebx+edi],eax          ; update page table
+  1863                              <1> 
+  1864                              <1> map_pmem_have_pgtbl :
+  1865                              <1>     ; for now, no security check, just direct map the address
+  1866                              <1>     ; and mark the pages and the page table r/w by all
+  1867 00000FCB 830C3B07            <1>     or   dword [ebx+edi],7      ; user, r/w, present
+  1868                              <1> 
+  1869 00000FCF 8B1C3B              <1>     mov  ebx,[ebx+edi]
+  1870 00000FD2 81E300F0FFFF        <1>     and  ebx,0xfffff000
+  1871 00000FD8 58                  <1>     pop  eax                    ; recover requested phys mem addr
+  1872                              <1>     ; FIXME yup, big security hole if called by ring 0! And it is ...
+  1873 00000FD9 83C807              <1>     or   eax,7                  ; user, r/w, present
+  1874 00000FDC 890413              <1>     mov  [ebx+edx],eax          ; update page directory
+  1875 00000FDF 61                  <1>     popa
+  1876 00000FE0 31C0                <1>     xor  eax,eax                ; 0
+  1877 00000FE2 C3                  <1>     ret
+  1878                              <1> 
+  1879                              <1> map_pmem_fail :
+  1880 00000FE3 48                  <1>     dec  eax                    ; -1
+  1881 00000FE4 C3                  <1>     ret
+  1882                              <1> 
+  1883                                  
+  1884 00000FE5 00<rept>                align 16, db 0
+  1885                                  kernel_text_size equ ($-textstart)
+  1886                                  
+  1887                                  ; ---------------------------------------------------------------------------
+  1888                                  section .data
+  1889                                  datastart :
+  1890                                  
+  1891                                  ; -------- descriptors --------------
+  1892                                  ; Intel SW dev manual 3a, 3.4.5, pg 103
+  1893                                  ;
+  1894                                  ; In my opinion, macros for descriptor entries
+  1895                                  ; don't make the code that much more readable.
+  1896                                  
+  1897                                  gdt :
+  1898                                  nullsel equ $-gdt           ; nullsel = 0h
+  1899 00000000 0000000000000000            dd 0,0                  ; first descriptor per convention is 0
+  1900                                  
+  1901                                  codesel equ $-gdt           ; codesel = 8h  4Gb flat over all logical mem
+  1902 00000008 FFFF                        dw 0xffff               ; limit 0-15
+  1903 0000000A 0000                        dw 0x0000               ; base  0-15
+  1904 0000000C 00                          db 0x00                 ; base 16-23
+  1905 0000000D 9A                          db 0x9a                 ; present, dpl=0, code e/r
+  1906 0000000E CF                          db 0xcf                 ; 4k granular, 32bit/8bit, limit 16-19
+  1907 0000000F 00                          db 0x00                 ; base 24-31
+  1908                                  
+  1909                                  datasel equ $-gdt           ; datasel = 10h  4Gb flat over all logical mem
+  1910 00000010 FFFF                        dw 0xffff               ; limit 0-15
+  1911 00000012 0000                        dw 0x0000               ; base  0-15
+  1912 00000014 00                          db 0x00                 ; base 16-23
+  1913 00000015 92                          db 0x92                 ; present, dpl=0, data r/w
+  1914 00000016 CF                          db 0xcf                 ; 4k granular, 32bit/8bit, limit 16-19
+  1915 00000017 00                          db 0x00                 ; base 24-31
+  1916                                  
+  1917                                  stacksel equ $-gdt          ; stacksel = 18h  small limited stack
+  1918 00000018 FF1F                        dw kstack_size-1        ; limit
+  1919 0000001A 0010                        dw kstack_loc           ; base
+  1920 0000001C 00                          db 0
+  1921 0000001D 92                          db 0x92                 ; present, dpl=0, data, r/w
+  1922 0000001E 40                          db 0x40                 ; byte granular, 32bit/8bit
+  1923 0000001F 00                          db 0
+  1924                                  
+  1925                                  videosel equ $-gdt          ; videosel = 20h
+  1926 00000020 9F0F                        dw 3999                 ; limit 80*25*2-1
+  1927 00000022 0080                        dw 0x8000               ; base 0xb8000
+  1928 00000024 0B                          db 0x0b
+  1929 00000025 92                          db 0x92                 ; present, dpl=0, data, r/w
+  1930 00000026 40                          db 0x40                 ; byte granular, 32bit/8bit
+  1931 00000027 00                          db 0
+  1932                                  
+  1933                                  rmcssel equ $-gdt           ; real mode CS selector = 28h
+  1934 00000028 FFFF                        dw 0x0ffff              ; limit 0-15
+  1935 0000002A 0000                        dw 0x0000               ; base  0-15
+  1936 0000002C 00                          db 0x00                 ; base 16-23
+  1937 0000002D 9A                          db 0x9a                 ; present, dpl=0, code e/r
+  1938 0000002E 0F                          db 0x0f                 ; byte granular, 16bit, limit 16-19
+  1939 0000002F 00                          db 0x00                 ; base 24-31
+  1940                                  
+  1941                                  rmdssel equ $-gdt           ; real mode DS selector = 30h
+  1942 00000030 FFFF                        dw 0x0ffff              ; limit 0-15
+  1943 00000032 0000                        dw 0x0000               ; base  0-15
+  1944 00000034 00                          db 0x00                 ; base 16-23
+  1945 00000035 92                          db 0x92                 ; present, dpl=0, data r/w
+  1946 00000036 0F                          db 0x0f                 ; byte granular, 16bit, limit 16-19
+  1947 00000037 00                          db 0x00                 ; base 24-31
+  1948                                  
+  1949                                  ldtsel1 equ $-gdt
+  1950 00000038 1800                        dw ldt1_len             ; length of the ldt
+  1951 0000003A [5001]                      dw ldt1                 ; address of the ldt
+  1952 0000003C 00                          db 0
+  1953 0000003D 82                          db 0x82                 ; present, dpl=0, ldt
+  1954 0000003E 40                          db 0x40                 ; byte granular, 32bit/8bit
+  1955 0000003F 00                          db 0
+  1956                                  
+  1957                                  tasksel_f08 equ $-gdt       ; the double fault task selector
+  1958 00000040 6800                        dw tss_len              ; tss length
+  1959 00000042 [6801]                      dw tss_f08              ; tss physical address
+  1960 00000044 00                          db 0
+  1961 00000045 89                          db 0x89                 ; present, dpl=0, tss32
+  1962 00000046 40                          db 0x40                 ; byte granular, 32bit/8bit
+  1963 00000047 00                          db 0
+  1964                                  
+  1965                                  tasksel_f10 equ $-gdt       ; the invalid tss task selector
+  1966 00000048 6800                        dw tss_len              ; tss length
+  1967 0000004A [D001]                      dw tss_f10              ; tss physical address
+  1968 0000004C 00                          db 0
+  1969 0000004D 89                          db 0x89                 ; present, dpl=0, tss32
+  1970 0000004E 40                          db 0x40                 ; byte granular, 32bit/8bit
+  1971 0000004F 00                          db 0
+  1972                                  
+  1973                                  ; there is one kernel thread tss (ring 0) and one user thread tss (ring 1)
+  1974                                  ; per cpu.  memory for tss structs for the non-boot cpus are allocated as
+  1975                                  ; each non-boot cpu comes online (see create_tss_pair).  tasksel_uXX tss
+  1976                                  ; gates are installed in the idt (starting at first_thread_tss_gate),
+  1977                                  ; they also map 1-to-1 with cpus.  (the thread is launched via an lapic
+  1978                                  ; vectored interrupt that jumps immediately into user space - and to call a
+  1979                                  ; task gate from an interrupt requires an existing ring 0 tss to be active)
+  1980                                  ; tasksel_uXX tsses are initialized in new_thread.
+  1981                                  
+  1982                                  tasksel_k00 equ $-gdt
+  1983 00000050 6800[3802]00894000                              dw tss_len, tss0, 0x8900, 0x40
+  1984                                  tasksel_u00 equ $-gdt
+  1985 00000058 6800[A002]00894000                              dw tss_len, tss1, 0x8900, 0x40
+  1986                                  tasksel_k01 equ $-gdt
+  1987 00000060 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  1988                                  tasksel_u01 equ $-gdt
+  1989 00000068 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  1990                                  tasksel_k02 equ $-gdt
+  1991 00000070 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  1992                                  tasksel_u02 equ $-gdt
+  1993 00000078 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  1994                                  tasksel_k03 equ $-gdt
+  1995 00000080 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  1996                                  tasksel_u03 equ $-gdt
+  1997 00000088 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  1998                                  tasksel_k04 equ $-gdt
+  1999 00000090 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2000                                  tasksel_u04 equ $-gdt
+  2001 00000098 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2002                                  tasksel_k05 equ $-gdt
+  2003 000000A0 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2004                                  tasksel_u05 equ $-gdt
+  2005 000000A8 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2006                                  tasksel_k06 equ $-gdt
+  2007 000000B0 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2008                                  tasksel_u06 equ $-gdt
+  2009 000000B8 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2010                                  tasksel_k07 equ $-gdt
+  2011 000000C0 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2012                                  tasksel_u07 equ $-gdt
+  2013 000000C8 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2014                                  tasksel_k08 equ $-gdt
+  2015 000000D0 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2016                                  tasksel_u08 equ $-gdt
+  2017 000000D8 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2018                                  tasksel_k09 equ $-gdt
+  2019 000000E0 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2020                                  tasksel_u09 equ $-gdt
+  2021 000000E8 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2022                                  tasksel_k10 equ $-gdt
+  2023 000000F0 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2024                                  tasksel_u10 equ $-gdt
+  2025 000000F8 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2026                                  tasksel_k11 equ $-gdt
+  2027 00000100 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2028                                  tasksel_u11 equ $-gdt
+  2029 00000108 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2030                                  tasksel_k12 equ $-gdt
+  2031 00000110 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2032                                  tasksel_u12 equ $-gdt
+  2033 00000118 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2034                                  tasksel_k13 equ $-gdt
+  2035 00000120 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2036                                  tasksel_u13 equ $-gdt
+  2037 00000128 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2038                                  tasksel_k14 equ $-gdt
+  2039 00000130 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2040                                  tasksel_u14 equ $-gdt
+  2041 00000138 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2042                                  tasksel_k15 equ $-gdt
+  2043 00000140 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2044                                  tasksel_u15 equ $-gdt
+  2045 00000148 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2046                                  gdt_end :
   2047                                  
-  2048                                  ldt1 :
-  2049                                  nullsel1 equ $-ldt1         ; nullsel1 = 07h
-  2050 00000150 0000000000000000            dd 0,0                  ; first descriptor per convention is 0
-  2051                                  
-  2052                                  codesel1 equ $-ldt1         ; codesel1 = 0fh  4Gb flat over all logical mem
-  2053 00000158 FFFF                        dw 0xffff               ; limit 0-15
-  2054 0000015A 0000                        dw 0x0000               ; base  0-15
-  2055 0000015C 00                          db 0x00                 ; base 16-23
-  2056 0000015D FA                          db 0xfa                 ; present, dpl=3, code e/r
-  2057 0000015E CF                          db 0xcf                 ; 4k granular, 32bit, limit 16-19
-  2058 0000015F 00                          db 0x00                 ; base 24-31
-  2059                                  
-  2060                                  datasel1 equ $-ldt1         ; datasel1 = 17h  4Gb flat over all logical mem
-  2061 00000160 FFFF                        dw 0xffff               ; limit 0-15
-  2062 00000162 0000                        dw 0x0000               ; base  0-15
-  2063 00000164 00                          db 0x00                 ; base 16-23
-  2064 00000165 F2                          db 0xf2                 ; present, dpl=3, data r/w
-  2065 00000166 CF                          db 0xcf                 ; 4k granular, 32bit, limit 16-19
-  2066 00000167 00                          db 0x00                 ; base 24-31
-  2067                                  
-  2068                                  ; gcc wants the ds, es, and ss segment registers to match
-  2069                                  ;stacksel1 equ $-ldt1        ; stacksel = 1ch  small limited stack
-  2070                                  ;    dw 0xffff               ; limit
-  2071                                  ;    dw 0x0000               ; base  0-15
-  2072                                  ;    db 0x00
-  2073                                  ;    db 0xf2                 ; present, dpl=3, data, r/w
-  2074                                  ;    db 0                    ; byte granular, 16 bit
-  2075                                  ;    db 0
-  2076                                  
-  2077                                  ldt1_end :
+  2048                                  ; ---------------------
+  2049                                  
+  2050                                  ldt1 :
+  2051                                  nullsel1 equ $-ldt1         ; nullsel1 = 07h
+  2052 00000150 0000000000000000            dd 0,0                  ; first descriptor per convention is 0
+  2053                                  
+  2054                                  codesel1 equ $-ldt1         ; codesel1 = 0fh  4Gb flat over all logical mem
+  2055 00000158 FFFF                        dw 0xffff               ; limit 0-15
+  2056 0000015A 0000                        dw 0x0000               ; base  0-15
+  2057 0000015C 00                          db 0x00                 ; base 16-23
+  2058 0000015D FA                          db 0xfa                 ; present, dpl=3, code e/r
+  2059 0000015E CF                          db 0xcf                 ; 4k granular, 32bit, limit 16-19
+  2060 0000015F 00                          db 0x00                 ; base 24-31
+  2061                                  
+  2062                                  datasel1 equ $-ldt1         ; datasel1 = 17h  4Gb flat over all logical mem
+  2063 00000160 FFFF                        dw 0xffff               ; limit 0-15
+  2064 00000162 0000                        dw 0x0000               ; base  0-15
+  2065 00000164 00                          db 0x00                 ; base 16-23
+  2066 00000165 F2                          db 0xf2                 ; present, dpl=3, data r/w
+  2067 00000166 CF                          db 0xcf                 ; 4k granular, 32bit, limit 16-19
+  2068 00000167 00                          db 0x00                 ; base 24-31
+  2069                                  
+  2070                                  ; gcc wants the ds, es, and ss segment registers to match
+  2071                                  ;stacksel1 equ $-ldt1        ; stacksel = 1ch  small limited stack
+  2072                                  ;    dw 0xffff               ; limit
+  2073                                  ;    dw 0x0000               ; base  0-15
+  2074                                  ;    db 0x00
+  2075                                  ;    db 0xf2                 ; present, dpl=3, data, r/w
+  2076                                  ;    db 0                    ; byte granular, 16 bit
+  2077                                  ;    db 0
   2078                                  
-  2079                                  ldt1_len equ ldt1_end-ldt1
+  2079                                  ldt1_end :
   2080                                  
-  2081                                  ; ---------------------
-  2082                                  ; the tss that handles double fault exceptions
-  2083                                  
-  2084                                  tss_f08 :                   ; intel sw 3a 7.6  pg 287 of 756
-  2085 00000168 00000000                    dw 0,0                  ; previous task link
-  2086 0000016C 00000000                    dd 0                    ; esp0
-  2087 00000170 00000000                    dw 0,0                  ; ss0
-  2088 00000174 00000000                    dd 0                    ; esp1
-  2089 00000178 00000000                    dw 0,0                  ; ss1
-  2090 0000017C 00000000                    dd 0                    ; esp2
-  2091 00000180 00000000                    dw 0,0                  ; ss2
-  2092 00000184 00300000                    dd pgdir                ; cr3
-  2093 00000188 [D40B0000]                  dd int_handler_tg_dblflt ; eip
-  2094 0000018C 00000000                    dd 0                    ; eflags
-  2095 00000190 00000000                    dd 0                    ; eax
-  2096 00000194 00000000                    dd 0                    ; ecx
-  2097 00000198 00000000                    dd 0                    ; edx
-  2098 0000019C 00000000                    dd 0                    ; ebx
-  2099 000001A0 00080000                    dd kstack_size/4        ; esp
-  2100 000001A4 00000000                    dd 0                    ; ebp
-  2101 000001A8 00000000                    dd 0                    ; esi
-  2102 000001AC 00000000                    dd 0                    ; edi
-  2103 000001B0 10000000                    dw datasel,0            ; es
-  2104 000001B4 08000000                    dw codesel,0            ; cs
-  2105 000001B8 10000000                    dw datasel,0            ; ss
-  2106 000001BC 10000000                    dw datasel,0            ; ds
-  2107 000001C0 00000000                    dw 0,0                  ; fs
-  2108 000001C4 20000000                    dw videosel,0           ; gs
-  2109 000001C8 00000000                    dw 0,0                  ; ldt
-  2110 000001CC 0000                        dw 0                    ; trap
-  2111 000001CE 0000                        dw 0                    ; iomap
-  2112                                  
-  2113                                  ; ---------------------
-  2114                                  ; the tss that handles invalid tss exceptions
-  2115                                  
-  2116                                  tss_f10 :                   ; intel sw 3a 7.6  pg 287 of 756
-  2117 000001D0 00000000                    dw 0,0                  ; previous task link
-  2118 000001D4 00000000                    dd 0                    ; esp0
-  2119 000001D8 00000000                    dw 0,0                  ; ss0
-  2120 000001DC 00000000                    dd 0                    ; esp1
-  2121 000001E0 00000000                    dw 0,0                  ; ss1
-  2122 000001E4 00000000                    dd 0                    ; esp2
-  2123 000001E8 00000000                    dw 0,0                  ; ss2
-  2124 000001EC 00300000                    dd pgdir                ; cr3
-  2125 000001F0 [E80B0000]                  dd int_handler_tg_invtss ; eip
-  2126 000001F4 00000000                    dd 0                    ; eflags
-  2127 000001F8 00000000                    dd 0                    ; eax
-  2128 000001FC 00000000                    dd 0                    ; ecx
-  2129 00000200 00000000                    dd 0                    ; edx
-  2130 00000204 00000000                    dd 0                    ; ebx
-  2131 00000208 00100000                    dd kstack_size/2        ; esp
-  2132 0000020C 00000000                    dd 0                    ; ebp
-  2133 00000210 00000000                    dd 0                    ; esi
-  2134 00000214 00000000                    dd 0                    ; edi
-  2135 00000218 10000000                    dw datasel,0            ; es
-  2136 0000021C 08000000                    dw codesel,0            ; cs
-  2137 00000220 10000000                    dw datasel,0            ; ss
-  2138 00000224 10000000                    dw datasel,0            ; ds
-  2139 00000228 00000000                    dw 0,0                  ; fs
-  2140 0000022C 20000000                    dw videosel,0           ; gs
-  2141 00000230 00000000                    dw 0,0                  ; ldt
-  2142 00000234 0000                        dw 0                    ; trap
-  2143 00000236 0000                        dw 0                    ; iomap
-  2144                                  
-  2145                                  ; ---------------------
-  2146                                  ; tss0 and tss1 are cpu0's pair, these are also templates for other
-  2147                                  ; cpus that come online.
-  2148                                  
-  2149                                  tss0 :                      ; intel swdev3a 7.6  pg 287 of 756
-  2150 00000238 00000000                    dw 0,0                  ; previous task link
-  2151                                  tss0_esp0 :
-  2152 0000023C 00000000                    dd 0                    ; esp0
-  2153                                  tss0_ss0 :
-  2154 00000240 00000000                    dw 0,0                  ; ss0
-  2155 00000244 00000000                    dd 0                    ; esp1
-  2156 00000248 00000000                    dw 0,0                  ; ss1
-  2157 0000024C 00000000                    dd 0                    ; esp2
-  2158 00000250 00000000                    dw 0,0                  ; ss2
-  2159                                  tss0_cr3 :
-  2160 00000254 00300000                    dd pgdir                ; cr3
-  2161                                  tss0_eip :
-  2162 00000258 00000000                    dd 0                    ; eip
-  2163 0000025C 00000000                    dd 0                    ; eflags
-  2164                                  tss0_eax :
-  2165 00000260 00000000                    dd 0                    ; eax
-  2166 00000264 00000000                    dd 0                    ; ecx
-  2167 00000268 00000000                    dd 0                    ; edx
-  2168 0000026C 00000000                    dd 0                    ; ebx
-  2169                                  tss0_esp :
-  2170 00000270 00000000                    dd 0                    ; esp
-  2171 00000274 00000000                    dd 0                    ; ebp
-  2172 00000278 00000000                    dd 0                    ; esi
-  2173 0000027C 00000000                    dd 0                    ; edi
-  2174                                  tss0_es :
-  2175 00000280 00000000                    dw 0,0                  ; es
-  2176                                  tss0_cs :
-  2177 00000284 00000000                    dw 0,0                  ; cs
-  2178                                  tss0_ss :
-  2179 00000288 00000000                    dw 0,0                  ; ss
-  2180                                  tss0_ds :
-  2181 0000028C 00000000                    dw 0,0                  ; ds
-  2182 00000290 00000000                    dw 0,0                  ; fs
-  2183 00000294 20000000                    dw videosel,0           ; gs
-  2184                                  tss0_ldt :
-  2185 00000298 00000000                    dw 0,0                  ; ldt
-  2186 0000029C 0000                        dw 0                    ; trap
-  2187 0000029E 0000                        dw 0                    ; iomap
-  2188                                  tss0_end :
-  2189                                  
-  2190                                  tss_len equ tss0_end-tss0
+  2081                                  ldt1_len equ ldt1_end-ldt1
+  2082                                  
+  2083                                  ; ---------------------
+  2084                                  ; the tss that handles double fault exceptions
+  2085                                  
+  2086                                  tss_f08 :                   ; intel sw 3a 7.6  pg 287 of 756
+  2087 00000168 00000000                    dw 0,0                  ; previous task link
+  2088 0000016C 00000000                    dd 0                    ; esp0
+  2089 00000170 00000000                    dw 0,0                  ; ss0
+  2090 00000174 00000000                    dd 0                    ; esp1
+  2091 00000178 00000000                    dw 0,0                  ; ss1
+  2092 0000017C 00000000                    dd 0                    ; esp2
+  2093 00000180 00000000                    dw 0,0                  ; ss2
+  2094 00000184 00300000                    dd pgdir                ; cr3
+  2095 00000188 [D40B0000]                  dd int_handler_tg_dblflt ; eip
+  2096 0000018C 00000000                    dd 0                    ; eflags
+  2097 00000190 00000000                    dd 0                    ; eax
+  2098 00000194 00000000                    dd 0                    ; ecx
+  2099 00000198 00000000                    dd 0                    ; edx
+  2100 0000019C 00000000                    dd 0                    ; ebx
+  2101 000001A0 00080000                    dd kstack_size/4        ; esp
+  2102 000001A4 00000000                    dd 0                    ; ebp
+  2103 000001A8 00000000                    dd 0                    ; esi
+  2104 000001AC 00000000                    dd 0                    ; edi
+  2105 000001B0 10000000                    dw datasel,0            ; es
+  2106 000001B4 08000000                    dw codesel,0            ; cs
+  2107 000001B8 10000000                    dw datasel,0            ; ss
+  2108 000001BC 10000000                    dw datasel,0            ; ds
+  2109 000001C0 00000000                    dw 0,0                  ; fs
+  2110 000001C4 20000000                    dw videosel,0           ; gs
+  2111 000001C8 00000000                    dw 0,0                  ; ldt
+  2112 000001CC 0000                        dw 0                    ; trap
+  2113 000001CE 0000                        dw 0                    ; iomap
+  2114                                  
+  2115                                  ; ---------------------
+  2116                                  ; the tss that handles invalid tss exceptions
+  2117                                  
+  2118                                  tss_f10 :                   ; intel sw 3a 7.6  pg 287 of 756
+  2119 000001D0 00000000                    dw 0,0                  ; previous task link
+  2120 000001D4 00000000                    dd 0                    ; esp0
+  2121 000001D8 00000000                    dw 0,0                  ; ss0
+  2122 000001DC 00000000                    dd 0                    ; esp1
+  2123 000001E0 00000000                    dw 0,0                  ; ss1
+  2124 000001E4 00000000                    dd 0                    ; esp2
+  2125 000001E8 00000000                    dw 0,0                  ; ss2
+  2126 000001EC 00300000                    dd pgdir                ; cr3
+  2127 000001F0 [E80B0000]                  dd int_handler_tg_invtss ; eip
+  2128 000001F4 00000000                    dd 0                    ; eflags
+  2129 000001F8 00000000                    dd 0                    ; eax
+  2130 000001FC 00000000                    dd 0                    ; ecx
+  2131 00000200 00000000                    dd 0                    ; edx
+  2132 00000204 00000000                    dd 0                    ; ebx
+  2133 00000208 00100000                    dd kstack_size/2        ; esp
+  2134 0000020C 00000000                    dd 0                    ; ebp
+  2135 00000210 00000000                    dd 0                    ; esi
+  2136 00000214 00000000                    dd 0                    ; edi
+  2137 00000218 10000000                    dw datasel,0            ; es
+  2138 0000021C 08000000                    dw codesel,0            ; cs
+  2139 00000220 10000000                    dw datasel,0            ; ss
+  2140 00000224 10000000                    dw datasel,0            ; ds
+  2141 00000228 00000000                    dw 0,0                  ; fs
+  2142 0000022C 20000000                    dw videosel,0           ; gs
+  2143 00000230 00000000                    dw 0,0                  ; ldt
+  2144 00000234 0000                        dw 0                    ; trap
+  2145 00000236 0000                        dw 0                    ; iomap
+  2146                                  
+  2147                                  ; ---------------------
+  2148                                  ; tss0 and tss1 are cpu0's pair, these are also templates for other
+  2149                                  ; cpus that come online.
+  2150                                  
+  2151                                  tss0 :                      ; intel swdev3a 7.6  pg 287 of 756
+  2152 00000238 00000000                    dw 0,0                  ; previous task link
+  2153                                  tss0_esp0 :
+  2154 0000023C 00000000                    dd 0                    ; esp0
+  2155                                  tss0_ss0 :
+  2156 00000240 00000000                    dw 0,0                  ; ss0
+  2157 00000244 00000000                    dd 0                    ; esp1
+  2158 00000248 00000000                    dw 0,0                  ; ss1
+  2159 0000024C 00000000                    dd 0                    ; esp2
+  2160 00000250 00000000                    dw 0,0                  ; ss2
+  2161                                  tss0_cr3 :
+  2162 00000254 00300000                    dd pgdir                ; cr3
+  2163                                  tss0_eip :
+  2164 00000258 00000000                    dd 0                    ; eip
+  2165 0000025C 00000000                    dd 0                    ; eflags
+  2166                                  tss0_eax :
+  2167 00000260 00000000                    dd 0                    ; eax
+  2168 00000264 00000000                    dd 0                    ; ecx
+  2169 00000268 00000000                    dd 0                    ; edx
+  2170 0000026C 00000000                    dd 0                    ; ebx
+  2171                                  tss0_esp :
+  2172 00000270 00000000                    dd 0                    ; esp
+  2173 00000274 00000000                    dd 0                    ; ebp
+  2174 00000278 00000000                    dd 0                    ; esi
+  2175 0000027C 00000000                    dd 0                    ; edi
+  2176                                  tss0_es :
+  2177 00000280 00000000                    dw 0,0                  ; es
+  2178                                  tss0_cs :
+  2179 00000284 00000000                    dw 0,0                  ; cs
+  2180                                  tss0_ss :
+  2181 00000288 00000000                    dw 0,0                  ; ss
+  2182                                  tss0_ds :
+  2183 0000028C 00000000                    dw 0,0                  ; ds
+  2184 00000290 00000000                    dw 0,0                  ; fs
+  2185 00000294 20000000                    dw videosel,0           ; gs
+  2186                                  tss0_ldt :
+  2187 00000298 00000000                    dw 0,0                  ; ldt
+  2188 0000029C 0000                        dw 0                    ; trap
+  2189 0000029E 0000                        dw 0                    ; iomap
+  2190                                  tss0_end :
   2191                                  
-  2192                                  ; user tss
+  2192                                  tss_len equ tss0_end-tss0
   2193                                  
-  2194                                  tss1 :                      ; intel sw 3a 7.6  pg 287 of 756
-  2195 000002A0 00000000                    dw 0,0                  ; previous task link
-  2196 000002A4 E01F0000                    dd kstack_size-32       ; esp0  (int and irq support)
-  2197 000002A8 10000000                    dw datasel,0            ; ss0   (-32 leaves some stack space for main)
-  2198 000002AC 00000000                    dd 0                    ; esp1
-  2199 000002B0 00000000                    dw 0,0                  ; ss1
-  2200 000002B4 00000000                    dd 0                    ; esp2
-  2201 000002B8 00000000                    dw 0,0                  ; ss2
-  2202 000002BC 00300000                    dd pgdir                ; cr3
-  2203                                  tss1_eip :
-  2204 000002C0 00000000                    dd 0                    ; eip
-  2205 000002C4 00000000                    dd 0                    ; eflags
-  2206 000002C8 00000000                    dd 0                    ; eax
-  2207 000002CC 00000000                    dd 0                    ; ecx
-  2208 000002D0 00000000                    dd 0                    ; edx
-  2209 000002D4 00000000                    dd 0                    ; ebx
-  2210 000002D8 00000000                    dd 0                    ; esp
-  2211 000002DC 00000000                    dd 0                    ; ebp
-  2212 000002E0 00000000                    dd 0                    ; esi
-  2213 000002E4 00000000                    dd 0                    ; edi
-  2214 000002E8 17000000                    dw datasel1+7,0         ; es
-  2215 000002EC 0F000000                    dw codesel1+7,0         ; cs
-  2216 000002F0 17000000                    dw datasel1+7,0         ; ss
-  2217 000002F4 17000000                    dw datasel1+7,0         ; ds
-  2218 000002F8 00000000                    dw 0,0                  ; fs
-  2219 000002FC 00000000                    dw 0,0                  ; gs
-  2220 00000300 3B000000                    dw ldtsel1+3,0          ; ldt
-  2221 00000304 0000                        dw 0                    ; trap
-  2222 00000306 0000                        dw 0                    ; iomap
-  2223                                  
-  2224                                  ; ---------------------
+  2194                                  ; user tss
+  2195                                  
+  2196                                  tss1 :                      ; intel sw 3a 7.6  pg 287 of 756
+  2197 000002A0 00000000                    dw 0,0                  ; previous task link
+  2198 000002A4 E01F0000                    dd kstack_size-32       ; esp0  (int and irq support)
+  2199 000002A8 10000000                    dw datasel,0            ; ss0   (-32 leaves some stack space for main)
+  2200 000002AC 00000000                    dd 0                    ; esp1
+  2201 000002B0 00000000                    dw 0,0                  ; ss1
+  2202 000002B4 00000000                    dd 0                    ; esp2
+  2203 000002B8 00000000                    dw 0,0                  ; ss2
+  2204 000002BC 00300000                    dd pgdir                ; cr3
+  2205                                  tss1_eip :
+  2206 000002C0 00000000                    dd 0                    ; eip
+  2207 000002C4 00000000                    dd 0                    ; eflags
+  2208 000002C8 00000000                    dd 0                    ; eax
+  2209 000002CC 00000000                    dd 0                    ; ecx
+  2210 000002D0 00000000                    dd 0                    ; edx
+  2211 000002D4 00000000                    dd 0                    ; ebx
+  2212 000002D8 00000000                    dd 0                    ; esp
+  2213 000002DC 00000000                    dd 0                    ; ebp
+  2214 000002E0 00000000                    dd 0                    ; esi
+  2215 000002E4 00000000                    dd 0                    ; edi
+  2216 000002E8 17000000                    dw datasel1+7,0         ; es
+  2217 000002EC 0F000000                    dw codesel1+7,0         ; cs
+  2218 000002F0 17000000                    dw datasel1+7,0         ; ss
+  2219 000002F4 17000000                    dw datasel1+7,0         ; ds
+  2220 000002F8 00000000                    dw 0,0                  ; fs
+  2221 000002FC 00000000                    dw 0,0                  ; gs
+  2222 00000300 3B000000                    dw ldtsel1+3,0          ; ldt
+  2223 00000304 0000                        dw 0                    ; trap
+  2224 00000306 0000                        dw 0                    ; iomap
   2225                                  
-  2226                                  gdtr :
-  2227 00000308 4F01                        dw gdt_end - gdt - 1    ; gdt length
-  2228 0000030A [00000000]                  dd gdt                  ; gdt physical address
-  2229                                  
-  2230                                  idtr :
-  2231                                      ; irq_setup_table_size == the number of gates in the idt
-  2232 0000030E FF07                        dw irq_setup_table_size * 8 - 1     ; idt limit (should be 2k)
-  2233 00000310 00700000                    dd idt                              ; address of the idt
-  2234                                  
-  2235 00000314 00000000                ncpus           dd 0        ; number of running cpus
+  2226                                  ; ---------------------
+  2227                                  
+  2228                                  gdtr :
+  2229 00000308 4F01                        dw gdt_end - gdt - 1    ; gdt length
+  2230 0000030A [00000000]                  dd gdt                  ; gdt physical address
+  2231                                  
+  2232                                  idtr :
+  2233                                      ; irq_setup_table_size == the number of gates in the idt
+  2234 0000030E FF07                        dw irq_setup_table_size * 8 - 1     ; idt limit (should be 2k)
+  2235 00000310 00700000                    dd idt                              ; address of the idt
   2236                                  
-  2237 00000318 00                      enabled_lapic   db 0        ; set to 1 if an lapic is present and in use
+  2237 00000314 00000000                ncpus           dd 0        ; number of running cpus
   2238                                  
-  2239 00000319 00000000                next_free_page  dd 0        ; initialized after page tables are setup
+  2239 00000318 00                      enabled_lapic   db 0        ; set to 1 if an lapic is present and in use
   2240                                  
-  2241 0000031D 0000000000000000        sleepers        dq 0        ; one bit per cpu
+  2241 00000319 00000000                next_free_page  dd 0        ; initialized after page tables are setup
   2242                                  
-  2243 00000325 00<rept>                align 16, db 0
-  2244                                  kernel_data_size equ ($-datastart)
-  2245                                  
-  2246                                  
-  2247                                  ; ---------------------
-  2248                                  ; Need to align to a physical page boundary here so that appended init apps
-  2249                                  ; are always page aligned.  The problem is our text section starts 1k below
-  2250                                  ; a page boundary, and so an 'align 4096' doesn't match up with physical
-  2251                                  ; memory.
-  2252                                  
-  2253                                  ; Add larger tests here if the times expression turns up negative, to make
-  2254                                  ; the kernel image size right, but your next problem will be that the boot
-  2255                                  ; loader will likely refuse to load all these sectors in one pass.
-  2256                                  
-  2257                                  section .fill
+  2243 0000031D 0000000000000000        sleepers        dq 0        ; one bit per cpu
+  2244                                  
+  2245 00000325 00<rept>                align 16, db 0
+  2246                                  kernel_data_size equ ($-datastart)
+  2247                                  
+  2248                                  
+  2249                                  ; ---------------------
+  2250                                  ; Need to align to a physical page boundary here so that appended init apps
+  2251                                  ; are always page aligned.  The problem is our text section starts 1k below
+  2252                                  ; a page boundary, and so an 'align 4096' doesn't match up with physical
+  2253                                  ; memory.
+  2254                                  
+  2255                                  ; Add larger tests here if the times expression turns up negative, to make
+  2256                                  ; the kernel image size right, but your next problem will be that the boot
+  2257                                  ; loader will likely refuse to load all these sectors in one pass.
   2258                                  
-  2259                                  fill :
+  2259                                  section .fill
   2260                                  
-  2261                                  %if total_size > 4096+1024
-  2262                                      times (4096+4096+1024-total_size) db 0
-  2263                                  %elif total_size > 1024
-  2264 00000000 00<rept>                    times (4096+1024-total_size) db 0
-  2265                                  %endif
-  2266                                  
-  2267                                  kend :
+  2261                                  fill :
+  2262                                  
+  2263                                  %if total_size > 4096+1024
+  2264                                      times (4096+4096+1024-total_size) db 0
+  2265                                  %elif total_size > 1024
+  2266 00000000 00<rept>                    times (4096+1024-total_size) db 0
+  2267                                  %endif
   2268                                  
+  2269                                  kend :
+  2270                                  

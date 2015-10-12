@@ -48,10 +48,6 @@ To exit qemu if it has grabbed the cursor and won't give it up,
 try <ctrl><alt>2 (or I think they moved it to <ctrl><alt>3 recently)
 to switch to monitor mode and then enter the command 'quit'.
 
-On real hardware there are still a few problems - see the makefile for
-selecting a trimmed down set of apps that can work on most.  A Centrino
-I have manages to run everything, the i7 can't handle the smp startup.
-
 Or to run qemu with PGDB:
 
     $ cd oz-x86-32-asm-003

@@ -237,8 +237,8 @@ Real              Virtual           Name
             8B76              8B76  sleep_loop
             8B8D              8B8D  syscall_request_pmem_access
             8B93              8B93  map_pmem
-            8BC8              8BC8  map_pmem_have_pgtbl
-            8BE0              8BE0  map_pmem_fail
+            8BCB              8BCB  map_pmem_have_pgtbl
+            8BE3              8BE3  map_pmem_fail
 
 ---- Section .data ------------------------------------------------------------
 

@@ -167,6 +167,7 @@ syscall_request_pmem_access :
 ;------------------------------------------------------------------
 ;   map_pmem - add entries to the current page directory/table
 ;              to direct map the requested physical memory address
+;              (logical identical to physical for now)
 ;
 ;   entry:
 ;       edx = phys memory address
@@ -179,6 +180,7 @@ syscall_request_pmem_access :
 
 map_pmem :
     pusha
+    invlpg [edx]
     push edx
     mov  ebx,cr3
     and  ebx,0xfffff000
