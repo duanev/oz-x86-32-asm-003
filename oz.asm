@@ -19,7 +19,7 @@
 ;
 ;
 ; usage:
-;	$ qemu-system-i386 -boot a -fda oz_fd
+;	$ qemu-system-i386 -boot a -fda oz_fd -monitor stdio
 ;
 ; requires: nasm-2.07  or later from: http://www.nasm.us
 ;
@@ -206,7 +206,7 @@ puts_vga_rm_loop :
 puts_vga_rm_done :
     ret
 
-bootmsg     db      "OZ v0.03.01 - 2015/10/07 ",0
+bootmsg     db      "OZ v0.03.01 - 2015/10/12 ",0
 s2errmsg    db      "stage 2 load failure ",0
 ioerrmsg    db      "i/o error loading stage 2 ",0
 
