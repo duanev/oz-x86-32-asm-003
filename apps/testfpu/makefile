@@ -6,13 +6,7 @@ CFLAGS = -O2
 # gcc's -g debug option causes objdump -S to include
 # source code that is incorrect
 
-# ... unnecessary options with which I was experimenting
-# http://www.johnloomis.org/altera/nios2/gnutools/binutils/gcc/Option-Index.html
-#OPTS1  = -nostdlib -nodefaultlibs -nostartfiles
-#OPTS2  = -momit-leaf-frame-pointer
-#OPTS32 = -Wno-pointer-to-int-cast
-
-OPTS   = -Wall -Wextra -Werror
+OPTS = -Wall -Wextra -Werror
 
 
 all: testfpu32

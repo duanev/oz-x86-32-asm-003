@@ -71,6 +71,7 @@ threads at the moment.
 
 
 Feel free to donate:
+
     email: duanev at gmail
     bitcoin: 1MhLdkqstABtGGTuw1rr66Xytg1nZpAKvk
 

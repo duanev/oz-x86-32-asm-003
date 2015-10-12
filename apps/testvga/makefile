@@ -5,21 +5,7 @@ CFLAGS32 = -m32 -DMACHINE_WORD_SIZE=32
 # (-O2 rearranges things pretty seriously for optimization)
 CFLAGS = -g -O0
 
-OPTS0  = -fpic
-OPTS1  = -Wall -Wextra -Werror
-#OPTS2  = -nostdlib -nodefaultlibs -momit-leaf-frame-pointer
-#OPTS3  = -fverbose-asm -mpreferred-stack-boundary=4
-#OPTS32 = -Wno-pointer-to-int-cast
-# $(OPTS2) $(OPTS3) $(OPTS32)
-
-#OPTS4  = -ftls-model=   # global-dynamic, local-dynamic, initial-exec or local-exec
-
-
-# -fno-stack-check -fno-ident -nostartfiles
-
-# Humm, main() is not appearing in the .lst file, instead _start()
-# appears twice, the second time as the label for the main() code!
-# Probably my twisty .ld file ...
+OPTS = -Wall -Wextra -Werror
 
 all: testvga32 testvga32.lst
 
