@@ -48,7 +48,7 @@
 ; 2009/08/01 - 0.03.00 - djv - create the OZ app execution container using
 ;                              TSSes, paging, and rings 0 and 3.  begin to
 ;                              play with system calls.
-; 2015/10/12 - 0.03.01 - djv - cleanup, add smp usermode tss structs, sleep,
+; 2015/10/26 - 0.03.01 - djv - cleanup, add smp usermode tss structs, sleep,
 ;                              wakeup, and ipi for user thread creation.
 
 %ifdef USB
@@ -155,7 +155,7 @@ load_stage2 :
     ;8 - dark grey          
 
     mov  ax,[stage2]        ; check the signature byte
-    add  ax,[stage2+2]      ; stage2 might already have been loaded (pxe)
+    add  ax,[stage2+2]      ; stage2 might already have been loaded
     cmp  ax,0x7a6f+0x32
     jz   stage2_present
 
@@ -225,7 +225,7 @@ puts_vga_rm_loop :
 puts_vga_rm_done :
     ret
 
-bootmsg     db      "OZ v0.03.01 - 2015/10/12 ",0
+bootmsg     db      "OZ v0.03.01 - 2015/10/26 ",0
 s2errmsg    db      "stage 2 load failure ",0
 ioerrmsg    db      "i/o error loading stage 2 ",0
 
@@ -270,7 +270,7 @@ times 510-($-$$) db 0       ; fill with zeros up to MBR signature
 ; If a boot loader only loads 512 bytes in the first pass, the following
 ; code won't appear in memory until the code above has completed.  Other
 ; loaders however can load the entire OZ kernel image into memory in one
-; shot.
+; shot. (pxe)
 
 bits 16
 
@@ -283,15 +283,15 @@ non_boot_cpu_ljmp_instruction :     ; place this in 16 bit code land
 ; adjust this if you want to change the supported number of cpus
 max_ncpus_l2   equ 7        ; log2(max_ncpus) (128 => 7)
 
-; adjust this if you want to change the stack size for each cpu
+; adjust this to change the total stack size for all cpus
 kstack_size_l2 equ 13       ; log2 stack space for all cpus (13 => 8k)
 
 kstack_size    equ (1 << kstack_size_l2)
 
 ; adjust these if you want to move things around
-kstack_loc  equ 0x1000      ; base - each cpu starts at (1 << kstact_size_l2)
-tss_f08_stk equ 0x6000      ; stack for double fault (grows down)
-tss_f10_stk equ 0x7000      ; stack for tss fault (grows down)
+kstack_loc  equ 0x1000      ; base for cpu stacks
+tss_f08_stk equ 0x6000      ; stack for double fault (grows down from ...)
+tss_f10_stk equ 0x7000      ; stack for tss fault (grows down from ...)
 sipi_vector equ 0x7000      ; where the non-boot cpus will start
 
 ; ---------------------
