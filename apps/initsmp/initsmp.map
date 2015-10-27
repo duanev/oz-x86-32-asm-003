@@ -6,12 +6,6 @@ Output file:  initsmp
 
 -- Symbols --------------------------------------------------------------------
 
----- No Section ---------------------------------------------------------------
-
-Value     Name
-00001000  kstack_loc
-
-
 ---- Section .text ------------------------------------------------------------
 
 Real              Virtual           Name
@@ -43,11 +37,11 @@ Real              Virtual           Name
           4000EA            4000EA  start
           400168            400168  cpu_recognized
           4001FD            4001FD  no_x2apic
-          40027D            40027D  no_vmx
-          400291            400291  no_topology
-          400293            400293  i_am_non_boot_cpu
-          400298            400298  cpuid_last_puts
-          40029D            40029D  cpuid_end
+          400284            400284  no_vmx
+          400298            400298  no_topology
+          40029A            40029A  i_am_non_boot_cpu
+          40029F            40029F  cpuid_last_puts
+          4002A4            4002A4  cpuid_end
 
 ---- Section .data ------------------------------------------------------------
 

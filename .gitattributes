@@ -1,8 +1,22 @@
 
-oz_fd           -diff
-oz_fd.img       -diff
-oz_fd.lst       -diff
-oz_fd.map       -diff
-oz_usb          -diff
-oz_usb.lst      -diff
-oz_usb.map      -diff
+oz_fd                           -diff
+oz_fd.img                       -diff
+oz_fd.lst                       -diff
+oz_fd.map                       -diff
+oz_usb                          -diff
+oz_usb.lst                      -diff
+oz_usb.map                      -diff
+apps/initsmp/initsmp            -diff
+apps/initsmp/initsmp.lst        -diff
+apps/initsmp/initsmp.map        -diff
+apps/testvga/testvga32          -diff
+apps/testvga/testvga32.lst      -diff
+apps/testvga/testvga32.map      -diff
+apps/testvga/testvga32.o        -diff
+apps/testfpu/sum32.lst          -diff
+apps/testfpu/sum32.o            -diff
+apps/testfpu/testfpu32          -diff
+apps/testfpu/testfpu32.lst      -diff
+apps/testfpu/testfpu32.map      -diff
+apps/testfpu/testfpu32.o        -diff
+

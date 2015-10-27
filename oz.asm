@@ -1,4 +1,4 @@
-; OZ - A more utopian OS   x86-32 startup 
+; OZ - A more utopian OS   x86-32 startup
 ; ex: set expandtab softtabstop=4 shiftwidth=4 nowrap :
 ;
 ; Copyright (C) 2015  Duane Voth
@@ -22,6 +22,9 @@
 ;	$ qemu-system-i386 -boot a -fda oz_fd -monitor stdio
 ;
 ; requires: nasm-2.07  or later from: http://www.nasm.us
+;
+; credits:
+;       many thanks to the folks at wiki.osdev.org who archive great info.
 ;
 ; contributors:
 ;        djv - Duane Voth
@@ -111,7 +114,7 @@ bits 16
 alignb 2
 
 load_stage2 :
-    mov  ax,kstack_loc
+    mov  ax,kstack_loc+kstack_size
     mov  sp,ax
     xor  ax,ax
     mov  ss,ax
@@ -121,9 +124,15 @@ load_stage2 :
     mov  gs,ax
     cld
 
+    ; debug - pattern the stack so we can see what gets used
+    mov  eax,0x11111111
+    mov  di,kstack_loc
+    mov  cx,kstack_size/4
+    rep stosd
+
     push dx                 ; save BIOS drive number
 
-    mov  ax,0x0600          ; ah=6 scroll window up, if al = 0 clrscr
+    mov  ax,0x0600          ; ah=06h : scroll window up, if al = 0 clrscr
     mov  cx,0x0000          ; clear window from 0,0 
     mov  dx,0x174f          ; to 23,79
     mov  bh,0xf             ; fill with hi white
@@ -145,8 +154,8 @@ load_stage2 :
     ;9 - blue               
     ;8 - dark grey          
 
-    mov  ax,[stage2]         ; check the signature byte
-    add  ax,[stage2+2]
+    mov  ax,[stage2]        ; check the signature byte
+    add  ax,[stage2+2]      ; stage2 might already have been loaded (pxe)
     cmp  ax,0x7a6f+0x32
     jz   stage2_present
 
@@ -157,7 +166,7 @@ load_stage2 :
     ; boot device, and that it can immediately follow the MBR.
 
     mov  ah,02h
-    mov  al,kisectors-1     ; number of sectors to load
+    mov  al,kisectors       ; number of sectors to load
     mov  bx,stage2
     mov  cx,2
     pop  dx                 ; recover BIOS drive number
@@ -222,8 +231,6 @@ ioerrmsg    db      "i/o error loading stage 2 ",0
 
 times 446-($-$$) db 0       ; fill with zeros up to partition table
 
-tmpstk      equ     $
-
 ; If the kernel is loaded from a disk (including usb) the MBR
 ; must include a partition table based on the device geometry.
 ; This gets fed into oz.asm here via usbptbl.inc
@@ -273,21 +280,23 @@ stage2 :
 non_boot_cpu_ljmp_instruction :     ; place this in 16 bit code land
     jmp word 0:0                    ; so we get the right opcode
 
-kstack_loc  equ 0x1000      ; must be on a 4k pysical page boundary
-kstack_size equ 4096*2
+; adjust this if you want to change the supported number of cpus
+max_ncpus_l2   equ 7        ; log2(max_ncpus) (128 => 7)
 
-pgdir equ 0x3000            ; use some of the free memory below us
-pgtb0 equ 0x4000            ; code below assumes this follows pgdir
-pgtb1 equ 0x5000            ; code below assumes this follows pgtb0
+; adjust this if you want to change the stack size for each cpu
+kstack_size_l2 equ 13       ; log2 stack space for all cpus (13 => 8k)
 
-idt   equ 0x7000            ; use some of the free memory below us
+kstack_size    equ (1 << kstack_size_l2)
+
+; adjust these if you want to move things around
+kstack_loc  equ 0x1000      ; base - each cpu starts at (1 << kstact_size_l2)
+tss_f08_stk equ 0x6000      ; stack for double fault (grows down)
+tss_f10_stk equ 0x7000      ; stack for tss fault (grows down)
+sipi_vector equ 0x7000      ; where the non-boot cpus will start
 
 ; ---------------------
 
 start_stage2 :
-
-    mov  ax,kstack_loc+kstack_size  ; setup the kernel stack
-    mov  sp,ax
 
     ; ---- initialize the 8259's while in real mode
 
@@ -296,33 +305,35 @@ start_stage2 :
 ; ------------ main kernel entry point ------------
 ; all cpus enter here
 main :
+    cli                     ; appears to stabilize recent machines a bit
 
     ; -------- enter protected mode --------
 
     lgdt [gdtr]             ; initialize the gdt
     mov  eax,cr0
-    or   al,0x01            ; set the protected mode bit (lsb of cr0)
-    mov  cr0,eax
+    or   al,0x21            ; set the protected mode bit (lsb of cr0)
+    mov  cr0,eax            ;   and enable the native FPU exceptions ...
     jmp  codesel:flush_ip1  ; flush the cpu instruction pipeline
 flush_ip1: 
 bits 32                     ; instructions after this point are 32bit
+
+    mov  ax,datasel
+    mov  ds,ax              ; initialize the data segments
+    mov  es,ax
 
     mov  eax,1
     xadd [ncpus],eax        ; get our unique cpu number
                             ; could use the lapic id if available
     mov  esi,eax
-    mov  ax,datasel   
-    mov  ds,ax              ; initialize the data segments
-    mov  es,ax
     mov  ax,stacksel        ; setup a restricted stack segment
     mov  ss,ax
-    mov  esp,kstack_size
+    mov  esp,kstack_size    ; start at the top of the reserved stack space
     mov  eax,esi
-    shl  eax,8              ; divvy up the stack, 256 bytes per cpu
-    sub  esp,eax
+    shl  eax,(kstack_size_l2 - max_ncpus_l2)    ; kstack_size/max_ncpus * cpu#
+    sub  esp,eax            ; divvy up the stack
 
     mov  eax,esi
-    push eax
+    push eax                ; save cpu index
     mov  ebx,eax
     add  bl,'0'             ; boot cpu announces via ascii 0
     mov  edi,160-2          ; last chracter on first line of vga
@@ -336,17 +347,74 @@ bits 32                     ; instructions after this point are 32bit
     or   eax,eax            ; are we the boot cpu?
     jg   non_boot_init      ; if not, do non_boot_init
 
-    call irq_init_bsp_apic_hardware
+    ; ---- establish a "pool" of free pyhsical memory
 
-    ; ---- debug marker
-    mov  byte [gs:1],0xA    ; turn the first two chars green
-    mov  byte [gs:3],0xA
+    mov  eax,((kilast+0x1000) >> 12)    ; include a buffer zone
+    mov  [next_free_page],eax
+
+    ; ---- setup the paging tables
+
+    call mem_alloc_kernel_page  ; get a page for pgdir
+    shl  eax,12                 ; convert pgno to physical addr
+    mov  edi,eax
+    mov  [pgdirp],eax
+    mov  [tss_f08_cr3],eax
+    mov  [tss_f10_cr3],eax
+    mov  [tss0_cr3],eax
+    mov  [tss1_cr3],eax
+    call mem_alloc_kernel_page  ; get a page for pgtb0
+    shl  eax,12
+    mov  edx,eax
+    mov  [pgtb0p],eax
+    call mem_alloc_kernel_page  ; get a page for pgtb1
+    shl  eax,12
+    mov  ecx,eax
+    mov  [pgtb1p],eax
+
+            ; first the page directory
+
+    mov  cr3,edi            ; install the page directory
+    mov  eax,edx
+    add  eax,7              ; page table 0: present, pl=3, r/w
+    stosd                   ; ... pl=3 for now (simplify vga access)
+    mov  eax,ecx
+    add  eax,7              ; page table 1: present, pl=3, r/w
+    stosd                   ; ... app memory
+    xor  eax,eax            ; invalidate the rest of the app laddr space
+    mov  ecx,0x400-2        ; (yeah, only one pgdir for kernel+apps for now)
+    rep stosd
+
+            ; pgtb0 is the page table for kernel memory
+
+    mov  edi,edx
+    stosd                   ; access to page 0 will always cause a fault
+    mov  eax,0x1000 + 3     ; rest are direct map: present, pl=0, r/w
+    mov  ecx,0x400-1
+pgtb0_fill :
+    stosd                   ; kernel gets to touch anything it wants < 4MB
+    add  eax,0x1000
+    loop pgtb0_fill
+
+            ; pgtb1 is the first page table for app code/data/stack it is
+            ; already all zeros (invalid - we'll fill in what we need later)
+
+            ; enable paging - if we've done it all right, we won't crash
+
+    mov  eax,cr0
+    or   eax,0x80000000     ; msb of cr0
+    mov  cr0,eax
+    jmp  flush_ip2          ; flush the cpu instruction pipeline
+flush_ip2: 
 
     ; ---- build the interrupt descriptor table
 
+    call mem_alloc_kernel_page  ; get a page for the idt
+    shl  eax,12                 ; convert pgno to physical addr
+    mov  edx,eax
+    mov  [idtr_addr],eax
+
     mov  esi,irq_setup_table
     mov  ecx,irq_setup_table_size
-    mov  edx,idt
 irq_init :
     xor  eax,eax
     mov  [edx],eax                  ; clear the idt entry
@@ -369,54 +437,17 @@ irq_init_task_gate :
 
     lidt [idtr]                     ; install the idt
 
-    ; ---- setup entry point for non_boot_cpus
+    ; ---- let's see what kind of interrupt hardware we've got
 
-    mov  al,[non_boot_cpu_ljmp_instruction]     ; get the ljmp instruction
-    mov  [kstack_loc],al                        ; place it at a 4k phys mem boundary
-    mov  dword [kstack_loc+1],main
-
-    ; ---- setup the paging tables
-
-    mov  edi,pgdir          ; first the page directory
-    mov  cr3,edi            ; install the page directory
-    mov  eax,pgtb0 + 7      ; page table 0: present, pl=3, r/w
-    stosd                   ; ... pl=3 for now (simplify vga access)
-    mov  eax,pgtb1 + 7      ; page table 1: present, pl=3, r/w
-    stosd                   ; ... app memory
-    xor  eax,eax            ; invalidate the rest of the app laddr space
-    mov  ecx,0x400-2        ; (yeah, only one pgdir for kernel+apps for now)
-    rep stosd
-
-            ; assume pgtb0 physically follows the pg dir
-            ; pgtb0 is the page table for kernel memory
-
-    stosd                   ; access to page 0 will always cause a fault
-    mov  eax,0x1000 + 3     ; rest are direct map: present, pl=0, r/w
-    mov  ecx,0x400-1
-pgtb0_fill :
-    stosd
-    add  eax,0x1000
-    loop pgtb0_fill
-
-            ; assume pgtb1 physically follows pgtb0
-            ; pgtb1 is the first page table for app code/data/stack
-
-    xor  eax,eax            ; invalidate the app logical address space
-    mov  ecx,0x400          ; (we'll fill in what we need later)
-    rep stosd
-
-            ; enable paging
-
-    mov  eax,cr0
-    or   eax,0x80000000     ; msb of cr0
-    mov  cr0,eax
-    jmp  flush_ip2          ; flush the cpu instruction pipeline
-flush_ip2: 
-
-            ; establish a "pool" of free pyhsical memory
-
-    mov  eax,((kilast+0x1000) >> 12)    ; include a buffer zone
-    mov  [next_free_page],eax
+    mov  byte [enabled_lapic],0x0
+    mov  eax,1
+    cpuid
+    cmp  eax,1
+    jb   no_lapic
+    and  edx,1 << 9         ; lapic feature
+    jz   no_lapic
+    mov  byte [enabled_lapic],0x1
+no_lapic :
 
             ; if enabled, create page table entry for the lapic
 
@@ -428,7 +459,24 @@ flush_ip2:
     mov  ecx,0x1000         ; length
     call map_pmem
 
+    ; do the ioapic while we're at it
+    mov  edx,0xfec00000     ; phys address
+    push edx
+    mov  ecx,0x1000         ; length
+    call map_pmem
+    pop  edx
+    mov  dword [edx],1
+    mov  eax,[0xfec00010]
+
+    call irq_init_bsp_apic_hardware
+
 no_lapic_init :
+
+    ; ---- setup entry point for non_boot_cpus
+
+    mov  al,[non_boot_cpu_ljmp_instruction]     ; get the ljmp instruction
+    mov  [sipi_vector],al                       ; place it at a 4k phys mem boundary
+    mov  dword [sipi_vector+1],main
 
     ; ---- establish a current task
 
@@ -473,16 +521,26 @@ have_an_app :
     stosd                   ; (esi)
     stosd                   ; (edi)
 
-    mov  edi,pgtb1          ; rewrite the app's page table
+    mov  edi,[pgtb1p]       ; rewrite the app's page table
     mov  eax,ebx
     or   eax,5              ; init app code at 0x400000 (4Mb) present and r/o
     stosd                   ; assume all the init apps are < 4k
     add  eax,0x1000 + 2     ; add one page for data/bss/stack
     stosd
 
-    ; ---- start the app
+    ; ---- debug marker
+    mov  byte [gs:1],0xA    ; turn the first two chars green
+    mov  byte [gs:3],0xA
+
+    ; ---- use our current stack for system interrupts during the app
 
     push ebx
+    mov  edi,tss1_esp0
+    mov  eax,esp
+    stosd
+
+    ; ---- start the app
+
     sti
     call tasksel_u00:0
     pop  ebx
@@ -505,7 +563,7 @@ non_boot_init :
 
     ; ---- enable paging
 
-    mov  edi,pgdir          ; load this cpu's paging register
+    mov  edi,[pgdirp]       ; load this cpu's paging register
     mov  cr3,edi
 
     push eax
@@ -516,9 +574,9 @@ non_boot_init :
 flush_ip3 : 
     pop  eax
 
-    ; ---- limit the number of cpus we support here
+    ; ---- limit the number of threads we support here
 
-    cmp  eax,16
+    cmp  eax,max_threads
     jae  nb_idle
 
     ; ---- init the lapic
@@ -532,7 +590,7 @@ flush_ip3 :
     mov  ebx,eax            ; move cpu number to ebx
     call create_tss_pair
     push ebx
-    shl  ebx,4              ; 16x (selector size x2)
+    shl  ebx,4              ; 16x (descriptor_size x2)
     add  ebx,tasksel_k00
     ltr  bx                 ; establish a current task
     pop  ebx
@@ -629,12 +687,14 @@ putx_vga_putc :
 ;   mem_alloc_kernel_page - return the 4k page number of 1 page of memory
 ;                           from the kernel page pool
 ;
+;   smp safe
+;
 ;   returns:    eax = page number, zero means no pages left
 
 mem_alloc_kernel_page :
-    mov  eax,[next_free_page]
-    inc  dword [next_free_page]
-    ; probably should check for the end of something ...
+    mov  eax,1
+    xadd [next_free_page],eax   ; atomic, making this re-entrant
+    ; FIXME probably should check for the end of something and return 0
     push eax
     push ecx
     push edi
@@ -661,15 +721,16 @@ create_tss_pair :
     or   eax,eax
     jz   create_tss_pair_fail
     shl  eax,12                 ; convert pgno to physical addr
-    mov  edi,eax
+    mov  edi,eax                ; first tss is the kernel ring 0 thread
 
     mov  esi,edi
-    add  esi,(tss0_end-tss0)
+    add  esi,(tss0_end-tss0)    ; second tss is the user ring 3 thread
 
-    mov  eax,pgdir
+    mov  eax,[pgdirp]
     mov  [edi+(tss0_cr3-tss0)],eax
     mov  [esi+(tss0_cr3-tss0)],eax
 
+    ; user tss gets ldt selectors
     mov  eax,datasel1+7
     mov  [esi+(tss0_es-tss0)],eax
     mov  [esi+(tss0_ss-tss0)],eax
@@ -679,21 +740,28 @@ create_tss_pair :
     mov  eax,ldtsel1+3
     mov  [esi+(tss0_ldt-tss0)],eax
 
-    ; setup the tss structs (edi = kernel, esi = user).
     ; there are three stacks total
     ;   (1) kernel tss esp0 - placed at the end of this page
     ;   (2) user tss esp0 (for interrupt handling) - end minus 1k
-    ;   (3) user tss esp3 (esp) - will be set up by new_thread
+    ;   (3) user tss esp - will be set up by new_thread
 
-    mov  eax,edi
-    add  eax,0x1000
-    mov  [edi+(tss0_esp0-tss0)],eax ; (1) kernel tss esp0
-    sub  eax,0x400
-    mov  [esi+(tss0_esp0-tss0)],eax ; (2) user tss esp0
     ;mov  eax,stacksel
+    ;mov  [edi+(tss0_ss0-tss0)],eax
+    ;mov  [edi+(tss0_esp0-tss0)],esp ; (1) kernel tss esp0
+
     mov  eax,datasel
     mov  [edi+(tss0_ss0-tss0)],eax
+    mov  eax,edi
+    add  eax,0x0800                 ; end of the tss page
+    mov  [edi+(tss0_esp0-tss0)],eax ; (1) kernel tss esp0
+
+    ; sloppy (datasel maps all of physical ram), but better than
+    ; having to set up a separate gdt stacksel for each cpu
+    mov  eax,datasel
     mov  [esi+(tss0_ss0-tss0)],eax
+    mov  eax,edi
+    add  eax,0x1000                 ; end of the tss page
+    mov  [esi+(tss0_esp0-tss0)],eax ; (2) user tss esp0
 
     ; patch the tss addresses into the reserved gdt selectors
 
@@ -739,6 +807,8 @@ datastart :
 ; In my opinion, macros for descriptor entries
 ; don't make the code that much more readable.
 
+descriptor_size equ 8
+
 gdt :
 nullsel equ $-gdt           ; nullsel = 0h
     dd 0,0                  ; first descriptor per convention is 0
@@ -776,7 +846,7 @@ videosel equ $-gdt          ; videosel = 20h
     db 0
 
 rmcssel equ $-gdt           ; real mode CS selector = 28h
-    dw 0x0ffff              ; limit 0-15
+    dw 0xffff               ; limit 0-15
     dw 0x0000               ; base  0-15
     db 0x00                 ; base 16-23
     db 0x9a                 ; present, dpl=0, code e/r
@@ -784,7 +854,7 @@ rmcssel equ $-gdt           ; real mode CS selector = 28h
     db 0x00                 ; base 24-31
 
 rmdssel equ $-gdt           ; real mode DS selector = 30h
-    dw 0x0ffff              ; limit 0-15
+    dw 0xffff               ; limit 0-15
     dw 0x0000               ; base  0-15
     db 0x00                 ; base 16-23
     db 0x92                 ; present, dpl=0, data r/w
@@ -888,6 +958,9 @@ tasksel_k15 equ $-gdt
                         dw tss_len, 0, 0x8900, 0x40
 tasksel_u15 equ $-gdt
                         dw tss_len, 0, 0x8900, 0x40
+
+max_threads equ ($-gdt-tasksel_k00)/descriptor_size/2
+
 gdt_end :
 
 ; ---------------------
@@ -930,20 +1003,21 @@ ldt1_len equ ldt1_end-ldt1
 
 tss_f08 :                   ; intel sw 3a 7.6  pg 287 of 756
     dw 0,0                  ; previous task link
-    dd 0                    ; esp0
-    dw 0,0                  ; ss0
+    dd tss_f08_stk-0x100    ; esp0
+    dw datasel,0            ; ss0
     dd 0                    ; esp1
     dw 0,0                  ; ss1
     dd 0                    ; esp2
     dw 0,0                  ; ss2
-    dd pgdir                ; cr3
+tss_f08_cr3 :
+    dd 0                    ; cr3
     dd int_handler_tg_dblflt ; eip
     dd 0                    ; eflags
     dd 0                    ; eax
     dd 0                    ; ecx
     dd 0                    ; edx
     dd 0                    ; ebx
-    dd kstack_size/4        ; esp
+    dd tss_f08_stk          ; esp
     dd 0                    ; ebp
     dd 0                    ; esi
     dd 0                    ; edi
@@ -962,20 +1036,21 @@ tss_f08 :                   ; intel sw 3a 7.6  pg 287 of 756
 
 tss_f10 :                   ; intel sw 3a 7.6  pg 287 of 756
     dw 0,0                  ; previous task link
-    dd 0                    ; esp0
-    dw 0,0                  ; ss0
+    dd tss_f10_stk-0x100    ; esp0
+    dw datasel,0            ; ss0
     dd 0                    ; esp1
     dw 0,0                  ; ss1
     dd 0                    ; esp2
     dw 0,0                  ; ss2
-    dd pgdir                ; cr3
+tss_f10_cr3 :
+    dd 0                    ; cr3
     dd int_handler_tg_invtss ; eip
     dd 0                    ; eflags
     dd 0                    ; eax
     dd 0                    ; ecx
     dd 0                    ; edx
     dd 0                    ; ebx
-    dd kstack_size/2        ; esp
+    dd tss_f10_stk          ; esp
     dd 0                    ; ebp
     dd 0                    ; esi
     dd 0                    ; edi
@@ -990,8 +1065,7 @@ tss_f10 :                   ; intel sw 3a 7.6  pg 287 of 756
     dw 0                    ; iomap
 
 ; ---------------------
-; tss0 and tss1 are cpu0's pair, these are also templates for other
-; cpus that come online.
+; tss0 and tss1 are cpu0's pair
 
 tss0 :                      ; intel swdev3a 7.6  pg 287 of 756
     dw 0,0                  ; previous task link
@@ -1004,7 +1078,7 @@ tss0_ss0 :
     dd 0                    ; esp2
     dw 0,0                  ; ss2
 tss0_cr3 :
-    dd pgdir                ; cr3
+    dd 0                    ; cr3
 tss0_eip :
     dd 0                    ; eip
     dd 0                    ; eflags
@@ -1040,13 +1114,15 @@ tss_len equ tss0_end-tss0
 
 tss1 :                      ; intel sw 3a 7.6  pg 287 of 756
     dw 0,0                  ; previous task link
-    dd kstack_size-32       ; esp0  (int and irq support)
-    dw datasel,0            ; ss0   (-32 leaves some stack space for main)
+tss1_esp0 :
+    dd 0                    ; esp0  (int and irq support)
+    dw stacksel,0           ; ss0   (filled in when running init apps)
     dd 0                    ; esp1
     dw 0,0                  ; ss1
     dd 0                    ; esp2
     dw 0,0                  ; ss2
-    dd pgdir                ; cr3
+tss1_cr3 :
+    dd 0                    ; cr3
 tss1_eip :
     dd 0                    ; eip
     dd 0                    ; eflags
@@ -1077,15 +1153,22 @@ gdtr :
 idtr :
     ; irq_setup_table_size == the number of gates in the idt
     dw irq_setup_table_size * 8 - 1     ; idt limit (should be 2k)
-    dd idt                              ; address of the idt
+idtr_addr :
+    dd 0                                ; address of the idt
 
 ncpus           dd 0        ; number of running cpus
-
-enabled_lapic   db 0        ; set to 1 if an lapic is present and in use
 
 next_free_page  dd 0        ; initialized after page tables are setup
 
 sleepers        dq 0        ; one bit per cpu
+
+pgdirp          dd 0
+pgtb0p          dd 0
+pgtb1p          dd 0
+
+enabled_lapic   db 0        ; set to 1 if an lapic is present and in use
+
+dbgwall         db 0xaa,0x55
 
 align 16, db 0
 kernel_data_size equ ($-datastart)

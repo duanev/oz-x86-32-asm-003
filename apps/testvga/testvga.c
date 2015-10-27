@@ -65,7 +65,8 @@ sleep(int ticks)
 // a nonzero initializer here pushes 'stack' out of common
 // and into .bss where the array is actually initialized.
 // (the BYTE(0) in testvga.ld was commented out so we can
-// use all 4096 bytes of the array for stack)
+// use all 4096 bytes of the array for stack without
+// disrupting the app's 8k footprint)
 unsigned char stack[MAX_THREADS][STACK_SIZE] = {1};
 
 int
@@ -99,7 +100,7 @@ map_vga_memory()
     syscall2(0x2700, (unsigned int)VIDEORAM, 0x2000);
 }
 
-#define TOPLINE 3           // don't write above this line
+#define TOPLINE 6           // don't write above this line
 #define WIDTH   80
 #define HEIGHT  (25-TOPLINE)
 
@@ -237,17 +238,23 @@ vcollision(int startrow, int column, int * dirp, int len)
 const char hblip[] = "-oOo-";
 const char vblip[] = "|X|";
 
+#define memcpy __builtin_memcpy
+
 void
 hthread(int thno)
 {
+    char blip[8];
     int row = 2 * thno + 4;
     int xpos = 1;
     int xdir = 1;
     int mdir;
 
+    memcpy(blip, hblip, sizeof(hblip)+1);   // copy hblip to the local stack
+    blip[2] = '0' + thno;                   // make our blip unique
+
     while (1) {
         // write new blip
-        pokehstr(row, xpos, hblip, CYAN);
+        pokehstr(row, xpos, blip, CYAN);
         sleep(1);
 
         mdir = hcollision(row, xpos, &xdir, sizeof(hblip));
@@ -265,14 +272,18 @@ hthread(int thno)
 void
 vthread(int thno)
 {
+    char blip[8];
     int column = 4 * thno + 20;
     int ypos = 1;
     int ydir = 1;
     int mdir;
 
+    memcpy(blip, vblip, sizeof(vblip)+1);   // copy vblip to the local stack
+    blip[1] = '0' + thno;                   // make our blip unique
+
     while (1) {
         // write new blip
-        pokevstr(ypos, column, vblip, CYAN);
+        pokevstr(ypos, column, blip, CYAN);
         sleep(1);
 
         mdir = vcollision(ypos, column, &ydir, sizeof(vblip));

@@ -18,6 +18,9 @@
 ;
 ;
 ; IRQ handling
+;
+; resources:
+;       http://forum.osdev.org/viewtopic.php?p=107868#107868
 
 cpumsg      db      "cpu",0
 
@@ -64,6 +67,9 @@ int255msg           db  "unknown system call ",0
 
 intvmmsg            db  "vm fault: ",0
 
+  align 4
+irq_err_lno dd 0
+
 ; ---- IRQ hardware initialization ----
 
 bits 16
@@ -89,9 +95,9 @@ irq_init_hardware :
     out  0x21,al
     mov  al,0x01
     out  0xA1,al
-    mov  al,0x00
+    mov  al,0xfc            ; PIC1 disable all but the timer and kbd
     out  0x21,al
-    mov  al,0x00
+    mov  al,0xff            ; PIC2 disable everything
     out  0xA1,al
     ret
 
@@ -104,30 +110,19 @@ irq_init_bsp_apic_hardware :
 
     ; ---- test for an apic
 
-    mov  eax,1
-    cpuid
-    cmp  eax,1
-    jb   no_apic
-    and  edx,1 << 9         ; apic feature
-    jz   no_apic
+    mov  eax,[0xfee00370]
+    and  eax,0xffffff00
+    or   eax,apicerr_int
+    mov  [0xfee00370],eax   ; setup LVT3 error vector
 
-;   mov  eax,[0xfee00370]
-;   and  eax,0xffffff00
-;   or   eax,apicerr_int
-;   mov  [0xfee00370],eax   ; setup LVT3 error vector
-
-    mov  eax,[0xfee00030]
-    and  eax,0xf0           ; see if it is a local apic
-    cmp  eax,0x10
-    jnz  no_lapic
-    mov  byte [enabled_lapic],0x1
-
-    mov  eax,0x000001f0     ; enable lapic, use spurious int 0xf0
+    mov  eax,0x00000100 + spurious_int    ; enable + spurious int
     mov  [0xfee000f0],eax   ; Spurious interrupt vector reg
     mov  eax,0x01000000
     mov  [0xfee000d0],eax   ; set our LDR
     mov  eax,0xffffffff
     mov  [0xfee000e0],eax   ; set our DFR
+    xor  eax,eax
+    mov  [0xfee000b0],eax   ; eoi anything outstanding
 
 ;    ; ---- enable the local apic via msr
 ; but apparently not needed ...
@@ -144,13 +139,12 @@ irq_init_bsp_apic_hardware :
     mov  gs,ax          
     mov  byte [gs:25*2],'+'
 
-no_apic :
-no_lapic :
     ret
 
 ; ----------
 
 irq_init_ap_apic_hardware :
+    ; eax = cpu number
 
     ; ---- mtrr for 0xfee00000 -> strong uncachable (UC) ?
 
@@ -169,7 +163,7 @@ irq_init_ap_apic_hardware :
     or   eax,apicerr_int
     mov  [0xfee00370],eax   ; setup LVT3 error vector
 
-    mov  eax,0x00000100 + spurious_int  ; enable lapic
+    mov  eax,0x00000100 + spurious_int  ; enable + spurious int
     mov  [0xfee000f0],eax   ; Spurious interrupt vector reg
     xor  eax,eax
     mov  [0xfee000b0],eax   ; eoi anything outstanding
@@ -201,7 +195,8 @@ int_handler_nmi :
     mov  esi,int02msg
     call irq_print_msg
     pop  esi
-    jmp  reboot_on_alt_key
+    iret
+    ;jmp  reboot_on_alt_key
 
 align 4
 int_handler_brkp :
@@ -242,7 +237,7 @@ int_handler_devna :
     ;call irq_print_msg
     ;pop  esi
     ; FIXME fxsave/fxrestore the fpu/sse/mmx regs
-    clts
+    clts                ; sure! you can use the fpu
     iret
 
 align 4
@@ -428,8 +423,8 @@ int_handler_simdfpe :
 
 align 4
 int_handler_timer :     
-    ;cli
-    pusha
+    push eax
+    push ebx
     mov  ax,videosel        ; point gs at video memory
     mov  gs,ax          
     mov  bl,byte [gs:1]     ; inc the color of the first two chars
@@ -437,6 +432,7 @@ int_handler_timer :
     and  bl,0xf             ; just the foreground
     mov  byte [gs:1],bl
     mov  byte [gs:3],bl
+    pop  ebx
 
     ; ---- wakeup any sleeping cpus (see syscall_sleep)
 
@@ -457,15 +453,12 @@ int_handler_timer :
 no_sleepers :
     mov  al,0x20        
     out  0x20,al            ; signal end of interrupt (eoi)
-    popa
+    pop  eax
     iret                
 
 align 4
 int_handler_kbd :
-    ;cli
-    mov  al,0x20
-    out  0x20,al            ; signal end of interrupt (eoi)
-
+    push eax
     mov  ax,videosel        ; point gs at video memory
     mov  gs,ax          
 
@@ -476,18 +469,22 @@ int_handler_kbd :
     call putbx_vga
     pop  eax
 
-    cmp  al,0x5b            ; scan code for "the windows key"
+    cmp  al,0x53            ; scan code for the DEL key
     jz   reboot
 
     mov  al,[gs:34*2]
     inc  al
     mov  [gs:34*2],al       ; change a character on screen
-
     pop  ebx
+
+    mov  al,0x20
+    out  0x20,al            ; signal end of interrupt (eoi)
+
+    pop  eax
     iret
 
 align 4
-int_handler_hw02 :
+int_handler_hw02 :          ; cascade
     push esi
     mov  esi,int34msg
     call irq_print_msg
@@ -495,7 +492,7 @@ int_handler_hw02 :
     jmp  reboot_on_alt_key
 
 align 4
-int_handler_hw03 :
+int_handler_hw03 :          ; serial port 2
     push esi
     mov  esi,int35msg
     call irq_print_msg
@@ -503,7 +500,7 @@ int_handler_hw03 :
     jmp  reboot_on_alt_key
 
 align 4
-int_handler_hw04 :
+int_handler_hw04 :          ; serial port 1
     push esi
     mov  esi,int36msg
     call irq_print_msg
@@ -511,7 +508,7 @@ int_handler_hw04 :
     jmp  reboot_on_alt_key
 
 align 4
-int_handler_hw05 :
+int_handler_hw05 :          ; parallel port 2 or sound card
     push esi
     mov  esi,int37msg
     call irq_print_msg
@@ -519,7 +516,7 @@ int_handler_hw05 :
     jmp  reboot_on_alt_key
 
 align 4
-int_handler_hw06 :
+int_handler_hw06 :          ; floppy disk controller
     push esi
     mov  esi,int38msg
     call irq_print_msg
@@ -527,15 +524,18 @@ int_handler_hw06 :
     jmp  reboot_on_alt_key
 
 align 4
-int_handler_hw07 :
+int_handler_hw07 :          ; parallel port 1
     push esi
     mov  esi,int39msg
     call irq_print_msg
     pop  esi
-    jmp  reboot_on_alt_key
+    mov  al,0x20
+    out  0x20,al            ; signal end of interrupt (eoi)
+    iret
+    ;jmp  reboot_on_alt_key
 
 align 4
-int_handler_hw08 :
+int_handler_hw08 :          ; RTC
     push esi
     mov  esi,int40msg
     call irq_print_msg
@@ -543,7 +543,7 @@ int_handler_hw08 :
     jmp  reboot_on_alt_key
 
 align 4
-int_handler_hw09 :
+int_handler_hw09 :          ; acpi
     push esi
     mov  esi,int41msg
     call irq_print_msg
@@ -567,7 +567,7 @@ int_handler_hw11 :
     jmp  reboot_on_alt_key
 
 align 4
-int_handler_hw12 :
+int_handler_hw12 :          ; mouse
     push esi
     mov  esi,int44msg
     call irq_print_msg
@@ -575,7 +575,7 @@ int_handler_hw12 :
     jmp  reboot_on_alt_key
 
 align 4
-int_handler_hw13 :
+int_handler_hw13 :          ; co-processor
     push esi
     mov  esi,int45msg
     call irq_print_msg
@@ -583,7 +583,7 @@ int_handler_hw13 :
     jmp  reboot_on_alt_key
 
 align 4
-int_handler_hw14 :
+int_handler_hw14 :          ; ata disk controller primary
     push esi
     mov  esi,int46msg
     call irq_print_msg
@@ -591,7 +591,7 @@ int_handler_hw14 :
     jmp  reboot_on_alt_key
 
 align 4
-int_handler_hw15 :
+int_handler_hw15 :          ; ata disk controller secondary
     push esi
     mov  esi,int47msg
     call irq_print_msg
@@ -659,6 +659,8 @@ sysent :
     jz   syscall_new_thread
     cmp  eax,0x2700
     jz   syscall_request_pmem_access
+    cmp  eax,0xfe00
+    jz   syscall_sipi_vector
     mov  esi,int255msg
     call irq_print_msg
     xor  eax,eax
@@ -669,18 +671,33 @@ sysent :
 ; ---- IRQ support code ---- 
 
 irq_print_msg :
-    mov  ebx,160            ; line 2
+    mov  eax,1
+    xadd [irq_err_lno],eax
+    push eax                ; remember line number
+    and  eax,0x3            ; only four lines
+    inc  eax                ; start with line 1
+    mov  ebx,160            ; vga line length
+    imul eax,ebx
+    mov  ebx,eax
+
     mov  al,[enabled_lapic]
     or   al,al
+    pop  eax
     jz   skip_cpumsg
 
     push esi
+    push eax
     mov  esi,cpumsg
     call puts_vga
     mov  eax,[0xfee00020]   ; print our apic id
     shr  eax,24
     add  eax,'0'
     mov  [gs:ebx],al
+    pop  eax                ; recover line number
+    shr  al,2               ; provide a rolling effect for
+    and  al,0xf             ;     unending irq messages
+    or   al,0x8
+    mov  [gs:ebx+1],al
     add  ebx,4
     pop  esi
 
@@ -689,13 +706,11 @@ skip_cpumsg :
 
 
 reboot_on_alt_key :
-    cli
 reboot_on_alt_key_loop :
     in   al,0x60
-    cmp  al,'8'             ; part of the scan code for ALT
+    cmp  al,0x53            ; scan code for the DEL key
     jnz  reboot_on_alt_key_loop
 reboot :
-    cli
     lidt [reboot_idt]       ; restore boot idt (helps qemu ...)
     jmp  rmcssel:reboot_exit_pmode      ; thankyou hpa
 reboot_exit_pmode :
@@ -819,12 +834,12 @@ first_thread_tss_gate equ ($ - irq_setup_table)/2
     dw                  0,0,0,0,0,0,0,0   ; 0xb0
     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0xc0
     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0xd0
-    dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0xe0
+    dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0     ; 0xe0
 spurious_int equ ($ - irq_setup_table)/2
     dw  int_handler_spurious  + irqt_intr
 apicerr_int equ ($ - irq_setup_table)/2
     dw  int_handler_apicerr   + irqt_app
-    dw      0,0,0,0,0,0,0,0,0,0,0,0       ; 0xf0
+    dw    0,0,0,0,0,0,0,0,0,0,0,0,0       ; 0xf0
     ; sw defined - expand down if needed
 wakeup_int equ ($ - irq_setup_table)/2
     dw  wakeup                + irqt_app

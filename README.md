@@ -7,14 +7,14 @@ Well, at least utopian was the goal when I begain this project.
 Written all in the NASM assembler OZ was intended to be a light weight
 microkernel/hypervisor for x86 that booted up fast (like in seconds fast).
 Got as far as bringing the cpu cores online, defining an ABI, and handling
-a few interrupts ...  But then I moved off in a slightly different direction.
+a few interrupts ... but then I moved off in a different direction.
 
 Resurrecting OZ 003 here in 2015 we find that the tools are better (qemu just
-rocks!) and my pgdb (look for it in my other github projects) makes NASM
-debugging way easier.
+rocks!, and my pgdb (look for it in my other github projects) makes NASM
+debugging way easier), and adding hardware thread support was fun.
 
 
-tested on: Arch Linux 2015
+tested on: Arch Linux ~2015
 
 
 ============ Files ============
@@ -59,10 +59,25 @@ Or to run qemu with PGDB:
     can tell where the origin of the first .lst file is declared)
 
 Running with 4 cpus is reasonably responsive as PGDB doesn't need to fetch
-as much cpu data after every single-step/breakpoint/watchpoint.  The kernel
-can handle up to 32 before it triple faults, but can only use 8 simultaneous
-threads at the moment.
+as much cpu data after every single-step/breakpoint/watchpoint.  The oz kernel
+can handle up to 79 before qemu starts acting weird, but can only use 8
+simultaneous threads at the moment (due to the way I'm assigning lapic
+addresses).  Yes, it's a multi-threaded kernel, but not a multi-tasking, lol,
+there is exactly one task running at a time.
 
+It's fun to make the cpu0 blip go faster by mashing the keyboard ^^
+
+Pressing the DEL key will reboot oz.
+
+
+============ Bugs etc. ========
+
+Running on QEMU always works, running on real hardware has some bugs:
+- all the cores startup but Intel's hyper threads don't
+- older machines work better than newer ones
+- some machines fire hwint 07 all the time, others once, some not at all
+- an ivy bridge machine I have faults almost! all the time but does better if
+  I wait for a few minutes before telling the BIOS to boot from the USB key.
 
 
 

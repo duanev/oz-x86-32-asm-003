@@ -18,351 +18,353 @@
     18                                  bits 32
     19                                  org 0x400000                    ; ozapp program load address
     20                                  
-    21                                  kstack_loc  equ     0x1000      ; a priori knowlege of kernel stack ...
+    21                                  ; ozapp header
     22                                  
-    23                                  ; ozapp header
-    24                                  
-    25                                  header :
-    26 00000000 6F7A617070000000            db  "ozapp",0,0,0
-    27 00000008 0F00                        dw  15              ; arch = x86
-    28 0000000A 1F00                        dw  31              ; subarch = oz protected mode, 4gb flat
-    29 0000000C 0000                        dw  0
-    30 0000000E 0000                        dw  0
-    31 00000010 [0010000000000000]          dq  end             ;end-header
-    32 00000018 [EA00000000000000]          dq  start
+    23                                  header :
+    24 00000000 6F7A617070000000            db  "ozapp",0,0,0
+    25 00000008 0F00                        dw  15              ; arch = x86
+    26 0000000A 1F00                        dw  31              ; subarch = oz protected mode, 4gb flat
+    27 0000000C 0000                        dw  0
+    28 0000000E 0000                        dw  0
+    29 00000010 [0010000000000000]          dq  end             ;end-header
+    30 00000018 [EA00000000000000]          dq  start
+    31                                  
+    32                                  ; r/o data and code - the first 4k -------------------------------
     33                                  
-    34                                  ; r/o data and code - the first 4k -------------------------------
-    35                                  
-    36 00000020 696E6974736D703A20-     announce   db "initsmp: ", 0
-    37 00000029 00                 
-    38 0000002A 343836206F72206C6F-     cpu486     db "486 or lower", 0
-    39 00000033 77657200           
-    40 00000037 3538362C00              cpu586     db "586,", 0
-    41 0000003C 696E74656C2C00          cpuintl    db "intel,", 0
-    42 00000043 616D642C00              cpuamd     db "amd,", 0
-    43 00000048 756E6B6E6F776E2076-     cpuxxx     db "unknown vendor", 0
-    44 00000051 656E646F7200       
-    45 00000057 6E6F20637075696400      cpunoid    db "no cpuid", 0
-    46 00000060 617069632C69643D00      cpuapic    db "apic,id=", 0
-    47 00000069 6E6F20617069632C00      cpunoapic  db "no apic,", 0
-    48 00000072 6C617069632C00          cpulapic   db "lapic,", 0
-    49 00000079 6E6F206C6170696300      cpunolapic db "no lapic", 0
-    50 00000082 7832617069632C00        cpux2apix  db "x2apic,", 0
-    51 0000008A 766D782D00              cpuvmx     db "vmx-", 0
-    52 0000008F 617661696C61626C65-     cpuavil    db "available", 0
-    53 00000098 00                 
-    54 00000099 756E617661696C6162-     cpuunavil  db "unavailable", 0
-    55 000000A2 6C6500             
-    56 000000A5 2D00                    cpuzzz     db "-", 0
-    57                                  
-    58                                  ; ----------------------------
-    59                                  ;    puts - write a null delimited string to a buffer
-    60                                  ;
-    61                                  ;    enter:
-    62                                  ;         esi - address of string
-    63                                  ;         ebx - address of output buffer
-    64                                  ;    exit:
-    65                                  ;         eax - destroyed
-    66                                  ;         ebx - next location in output buffer
-    67                                  
-    68                                  puts :
-    69                                  puts_loop :
-    70 000000A7 AC                          lodsb
-    71 000000A8 3C00                        cmp  al,0
-    72 000000AA 7407                        jz   puts_done
-    73 000000AC 8803                        mov  [ebx],al
-    74 000000AE 83C301                      add  ebx,1
-    75 000000B1 EBF4                        jmp  puts_loop
-    76                                  
-    77                                  puts_done :
-    78 000000B3 C3                          ret
-    79                                  
-    80                                  ; ----------------------------
-    81                                  ;    putx  - write the contents of eax in hex to a buffer (8 digits)
-    82                                  ;    putbx - write the contents of  al in hex to a buffer (2 digits)
-    83                                  ;
-    84                                  ;    enter:
-    85                                  ;         eax - value to convert to hex
-    86                                  ;         ebx - address of output buffer
-    87                                  ;    exit:
-    88                                  ;         ebx - next location in output buffer
-    89                                  ;         ecx - destroyed
-    90                                  
-    91                                  putbx :
-    92 000000B4 B902000000                  mov  ecx,2
-    93 000000B9 25FF000000                  and  eax,0xff
-    94 000000BE C1C018                      rol  eax,24
-    95 000000C1 EB05                        jmp putx_loop
-    96                                  
-    97                                  putx :
-    98 000000C3 B908000000                  mov  ecx,8
-    99                                  
-   100                                  putx_loop :
-   101 000000C8 C1C004                      rol  eax,4
-   102 000000CB 50                          push eax
-   103 000000CC 240F                        and  al,0xf
-   104 000000CE 3C09                        cmp  al,9
-   105 000000D0 7704                        ja   putx_hexdigit
-   106 000000D2 0430                        add  al,'0'
-   107 000000D4 EB02                        jmp short putx_putc
-   108                                  
-   109                                  putx_hexdigit :
-   110 000000D6 0457                        add  al,'a'-10
-   111                                  
-   112                                  putx_putc :
-   113 000000D8 8803                        mov  [ebx],al
-   114 000000DA 83C301                      add  ebx,1
-   115 000000DD 58                          pop  eax
-   116 000000DE 83E0F0                      and  eax,0xfffffff0
-   117 000000E1 E2E5                        loop putx_loop
-   118 000000E3 C6032C                      mov  byte [ebx],','
-   119 000000E6 83C301                      add  ebx,1
-   120 000000E9 C3                          ret
-   121                                  
-   122                                  ; ----------------------------
-   123                                  ;    delay - wait for a few milliseconds
-   124                                  ;
-   125                                  ;    enter:
-   126                                  ;         eax - 
+    34 00000020 696E6974736D703A20-     announce   db "initsmp: ", 0
+    35 00000029 00                 
+    36 0000002A 343836206F72206C6F-     cpu486     db "486 or lower", 0
+    37 00000033 77657200           
+    38 00000037 3538362C00              cpu586     db "586,", 0
+    39 0000003C 696E74656C2C00          cpuintl    db "intel,", 0
+    40 00000043 616D642C00              cpuamd     db "amd,", 0
+    41 00000048 756E6B6E6F776E2076-     cpuxxx     db "unknown vendor", 0
+    42 00000051 656E646F7200       
+    43 00000057 6E6F20637075696400      cpunoid    db "no cpuid", 0
+    44 00000060 617069632C69643D00      cpuapic    db "apic,id=", 0
+    45 00000069 6E6F20617069632C00      cpunoapic  db "no apic,", 0
+    46 00000072 6C617069632C00          cpulapic   db "lapic,", 0
+    47 00000079 6E6F206C6170696300      cpunolapic db "no lapic", 0
+    48 00000082 7832617069632C00        cpux2apix  db "x2apic,", 0
+    49 0000008A 766D782D00              cpuvmx     db "vmx-", 0
+    50 0000008F 617661696C61626C65-     cpuavil    db "available", 0
+    51 00000098 00                 
+    52 00000099 756E617661696C6162-     cpuunavil  db "unavailable", 0
+    53 000000A2 6C6500             
+    54 000000A5 2D00                    cpuzzz     db "-", 0
+    55                                  
+    56                                  ; ----------------------------
+    57                                  ;    puts - write a null delimited string to a buffer
+    58                                  ;
+    59                                  ;    enter:
+    60                                  ;         esi - address of string
+    61                                  ;         ebx - address of output buffer
+    62                                  ;    exit:
+    63                                  ;         eax - destroyed
+    64                                  ;         ebx - next location in output buffer
+    65                                  
+    66                                  puts :
+    67                                  puts_loop :
+    68 000000A7 AC                          lodsb
+    69 000000A8 3C00                        cmp  al,0
+    70 000000AA 7407                        jz   puts_done
+    71 000000AC 8803                        mov  [ebx],al
+    72 000000AE 83C301                      add  ebx,1
+    73 000000B1 EBF4                        jmp  puts_loop
+    74                                  
+    75                                  puts_done :
+    76 000000B3 C3                          ret
+    77                                  
+    78                                  ; ----------------------------
+    79                                  ;    putx  - write the contents of eax in hex to a buffer (8 digits)
+    80                                  ;    putbx - write the contents of  al in hex to a buffer (2 digits)
+    81                                  ;
+    82                                  ;    enter:
+    83                                  ;         eax - value to convert to hex
+    84                                  ;         ebx - address of output buffer
+    85                                  ;    exit:
+    86                                  ;         ebx - next location in output buffer
+    87                                  ;         ecx - destroyed
+    88                                  
+    89                                  putbx :
+    90 000000B4 B902000000                  mov  ecx,2
+    91 000000B9 25FF000000                  and  eax,0xff
+    92 000000BE C1C018                      rol  eax,24
+    93 000000C1 EB05                        jmp putx_loop
+    94                                  
+    95                                  putx :
+    96 000000C3 B908000000                  mov  ecx,8
+    97                                  
+    98                                  putx_loop :
+    99 000000C8 C1C004                      rol  eax,4
+   100 000000CB 50                          push eax
+   101 000000CC 240F                        and  al,0xf
+   102 000000CE 3C09                        cmp  al,9
+   103 000000D0 7704                        ja   putx_hexdigit
+   104 000000D2 0430                        add  al,'0'
+   105 000000D4 EB02                        jmp short putx_putc
+   106                                  
+   107                                  putx_hexdigit :
+   108 000000D6 0457                        add  al,'a'-10
+   109                                  
+   110                                  putx_putc :
+   111 000000D8 8803                        mov  [ebx],al
+   112 000000DA 83C301                      add  ebx,1
+   113 000000DD 58                          pop  eax
+   114 000000DE 83E0F0                      and  eax,0xfffffff0
+   115 000000E1 E2E5                        loop putx_loop
+   116 000000E3 C6032C                      mov  byte [ebx],','
+   117 000000E6 83C301                      add  ebx,1
+   118 000000E9 C3                          ret
+   119                                  
+   120                                  ; ----------------------------
+   121                                  ;    delay - wait for a few milliseconds
+   122                                  ;
+   123                                  ;    enter:
+   124                                  ;         eax - 
+   125                                  ;         ebx - 
+   126                                  ;    exit:
    127                                  ;         ebx - 
-   128                                  ;    exit:
-   129                                  ;         ebx - 
-   130                                  ;         ecx - destroyed
-   131                                  
-   132                                  
-   133                                  ; ----------------------------
-   134                                  ;   main
+   128                                  ;         ecx - destroyed
+   129                                  
+   130                                  
+   131                                  ; ----------------------------
+   132                                  ;   main
+   133                                  
+   134                                  start :
    135                                  
-   136                                  start :
-   137                                  
-   138 000000EA BB[00000000]                mov  ebx,print_buf
-   139 000000EF BE[20000000]                mov  esi,announce
-   140 000000F4 E8AEFFFFFF                  call puts
-   141 000000F9 53                          push ebx
+   136 000000EA BB[00000000]                mov  ebx,print_buf
+   137 000000EF BE[20000000]                mov  esi,announce
+   138 000000F4 E8AEFFFFFF                  call puts
+   139 000000F9 53                          push ebx
+   140                                  
+   141                                      ; ---- check on our processor type
    142                                  
-   143                                      ; ---- check on our processor type
-   144                                  
-   145 000000FA 9C                          pushfd
-   146 000000FB 58                          pop  eax                ; get flags
-   147 000000FC 89C3                        mov  ebx,eax            ; save
-   148 000000FE B900002000                  mov  ecx,1 << 21        ; ID flag (bit 21)
-   149 00000103 31C8                        xor  eax,ecx
-   150 00000105 50                          push eax
-   151 00000106 9D                          popfd
-   152 00000107 9C                          pushfd
-   153 00000108 58                          pop  eax
-   154 00000109 53                          push ebx
-   155 0000010A 9D                          popfd                   ; restore flags
-   156 0000010B 21CB                        and  ebx,ecx
-   157 0000010D 21C8                        and  eax,ecx
-   158 0000010F 39D8                        cmp  eax,ebx            ; if flag is stuck, then 486
-   159 00000111 5B                          pop  ebx
-   160 00000112 BE[2A000000]                mov  esi,cpu486
-   161 00000117 0F847B010000                jz   cpuid_last_puts
-   162 0000011D BE[37000000]                mov  esi,cpu586
-   163 00000122 E880FFFFFF                  call puts
-   164 00000127 53                          push ebx
-   165                                  
-   166 00000128 31C0                        xor  eax,eax
-   167 0000012A 0FA2                        cpuid                   ; its at least a Pentium, use cpuid
-   168 0000012C A3[00020000]                mov  [level],eax
-   169 00000131 891D[10020000]              mov  [id_buf],ebx
-   170 00000137 8915[14020000]              mov  [id_buf+4],edx
-   171 0000013D 890D[18020000]              mov  [id_buf+8],ecx
-   172                                  
-   173 00000143 BE[43000000]                mov  esi,cpuamd
-   174 00000148 81F963414D44                cmp  ecx,0x444d4163     ; test for 'cAMD' in ecx
-   175 0000014E 7418                        jz   cpu_recognized
-   176 00000150 BE[3C000000]                mov  esi,cpuintl
-   177 00000155 81F96E74656C                cmp  ecx,0x6c65746e     ; test for 'ntel' in ecx
-   178 0000015B 740B                        jz   cpu_recognized
-   179 0000015D 5B                          pop  ebx
-   180 0000015E BE[10020000]                mov  esi,id_buf
-   181 00000163 E930010000                  jmp  cpuid_last_puts
-   182                                  
-   183                                  cpu_recognized :
-   184 00000168 5B                          pop  ebx
-   185 00000169 E839FFFFFF                  call puts
-   186                                  
-   187 0000016E 53                          push ebx
-   188 0000016F B801000000                  mov  eax,1
-   189 00000174 0FA2                        cpuid
-   190 00000176 891D[04020000]              mov  [feature_ebx],ebx
-   191 0000017C 890D[08020000]              mov  [feature_ecx],ecx  ; save feature flags
-   192 00000182 8915[0C020000]              mov  [feature_edx],edx
-   193 00000188 83F801                      cmp  eax,1
-   194 0000018B BE[57000000]                mov  esi,cpunoid
-   195 00000190 5B                          pop  ebx
-   196 00000191 0F8201010000                jb   cpuid_last_puts
-   197                                  
-   198 00000197 53                          push ebx
-   199 00000198 81E200020000                and  edx,1 << 9         ; test for apic feature
-   200 0000019E BE[69000000]                mov  esi,cpunoapic
-   201 000001A3 5B                          pop  ebx
-   202 000001A4 0F84EE000000                jz   cpuid_last_puts
-   203 000001AA BE[60000000]                mov  esi,cpuapic
-   204 000001AF E8F3FEFFFF                  call puts
-   205                                  
-   206 000001B4 A1[04020000]                mov  eax,[feature_ebx]
-   207 000001B9 C1E818                      shr  eax,24             ; mask off initial apic ID
-   208 000001BC E8F3FEFFFF                  call putbx
+   143 000000FA 9C                          pushfd
+   144 000000FB 58                          pop  eax                ; get flags
+   145 000000FC 89C3                        mov  ebx,eax            ; save
+   146 000000FE B900002000                  mov  ecx,1 << 21        ; ID flag (bit 21)
+   147 00000103 31C8                        xor  eax,ecx
+   148 00000105 50                          push eax
+   149 00000106 9D                          popfd
+   150 00000107 9C                          pushfd
+   151 00000108 58                          pop  eax
+   152 00000109 53                          push ebx
+   153 0000010A 9D                          popfd                   ; restore flags
+   154 0000010B 21CB                        and  ebx,ecx
+   155 0000010D 21C8                        and  eax,ecx
+   156 0000010F 39D8                        cmp  eax,ebx            ; if flag is stuck, then 486
+   157 00000111 5B                          pop  ebx
+   158 00000112 BE[2A000000]                mov  esi,cpu486
+   159 00000117 0F8482010000                jz   cpuid_last_puts
+   160 0000011D BE[37000000]                mov  esi,cpu586
+   161 00000122 E880FFFFFF                  call puts
+   162 00000127 53                          push ebx
+   163                                  
+   164 00000128 31C0                        xor  eax,eax
+   165 0000012A 0FA2                        cpuid                   ; its at least a Pentium, use cpuid
+   166 0000012C A3[00020000]                mov  [level],eax
+   167 00000131 891D[10020000]              mov  [id_buf],ebx
+   168 00000137 8915[14020000]              mov  [id_buf+4],edx
+   169 0000013D 890D[18020000]              mov  [id_buf+8],ecx
+   170                                  
+   171 00000143 BE[43000000]                mov  esi,cpuamd
+   172 00000148 81F963414D44                cmp  ecx,0x444d4163     ; test for 'cAMD' in ecx
+   173 0000014E 7418                        jz   cpu_recognized
+   174 00000150 BE[3C000000]                mov  esi,cpuintl
+   175 00000155 81F96E74656C                cmp  ecx,0x6c65746e     ; test for 'ntel' in ecx
+   176 0000015B 740B                        jz   cpu_recognized
+   177 0000015D 5B                          pop  ebx
+   178 0000015E BE[10020000]                mov  esi,id_buf
+   179 00000163 E937010000                  jmp  cpuid_last_puts
+   180                                  
+   181                                  cpu_recognized :
+   182 00000168 5B                          pop  ebx
+   183 00000169 E839FFFFFF                  call puts
+   184                                  
+   185 0000016E 53                          push ebx
+   186 0000016F B801000000                  mov  eax,1
+   187 00000174 0FA2                        cpuid
+   188 00000176 891D[04020000]              mov  [feature_ebx],ebx
+   189 0000017C 890D[08020000]              mov  [feature_ecx],ecx  ; save feature flags
+   190 00000182 8915[0C020000]              mov  [feature_edx],edx
+   191 00000188 83F801                      cmp  eax,1
+   192 0000018B BE[57000000]                mov  esi,cpunoid
+   193 00000190 5B                          pop  ebx
+   194 00000191 0F8208010000                jb   cpuid_last_puts
+   195                                  
+   196 00000197 53                          push ebx
+   197 00000198 81E200020000                and  edx,1 << 9         ; test for apic feature
+   198 0000019E BE[69000000]                mov  esi,cpunoapic
+   199 000001A3 5B                          pop  ebx
+   200 000001A4 0F84F5000000                jz   cpuid_last_puts
+   201 000001AA BE[60000000]                mov  esi,cpuapic
+   202 000001AF E8F3FEFFFF                  call puts
+   203                                  
+   204 000001B4 A1[04020000]                mov  eax,[feature_ebx]
+   205 000001B9 C1E818                      shr  eax,24             ; mask off initial apic ID
+   206 000001BC E8F3FEFFFF                  call putbx
+   207                                  
+   208                                      ; ---- mtrr for 0xfee00000 -> strong uncachable (UC)
    209                                  
-   210                                      ; ---- mtrr for 0xfee00000 -> strong uncachable (UC)
+   210                                      ; ---- access the local APIC
    211                                  
-   212                                      ; ---- access the local APIC
-   213                                  
-   214 000001C1 53                          push ebx
-   215 000001C2 A13000E0FE                  mov  eax,[0xfee00030]
-   216 000001C7 89C1                        mov  ecx,eax
-   217 000001C9 25F0000000                  and  eax,0xf0           ; see if it is a local apic
-   218 000001CE 83F810                      cmp  eax,0x10
-   219 000001D1 5B                          pop  ebx
-   220 000001D2 BE[79000000]                mov  esi,cpunolapic
-   221 000001D7 0F85BB000000                jnz  cpuid_last_puts
-   222 000001DD BE[72000000]                mov  esi,cpulapic
-   223 000001E2 E8C0FEFFFF                  call puts
-   224                                  
-   225 000001E7 A1[08020000]                mov  eax,[feature_ecx]
-   226 000001EC 2500002000                  and  eax,1 << 21        ; x2apic feature bit
-   227 000001F1 740A                        jz   no_x2apic
-   228 000001F3 BE[82000000]                mov  esi,cpux2apix
-   229 000001F8 E8AAFEFFFF                  call puts
-   230                                  no_x2apic :
-   231                                  
-   232 000001FD 89C8                        mov  eax,ecx
-   233 000001FF E8BFFEFFFF                  call putx               ; Athlon +1600 says 0x00040010
-   234                                                              ; Bochs        says 0x00050010
-   235                                                              ; real intel   says 0x00050014
-   236                                                              ; real amd     says 0x80050014
-   237                                  
-   238                                  ;   mov  ecx,0x1b
-   239                                  ;   rdmsr
-   240                                  ;   and  eax,0x100          ; are we the bootstrap processor?
-   241                                  ;   jz   i_am_non_boot_cpu
+   212 000001C1 53                          push ebx
+   213 000001C2 A13000E0FE                  mov  eax,[0xfee00030]
+   214 000001C7 89C1                        mov  ecx,eax
+   215 000001C9 25F0000000                  and  eax,0xf0           ; see if it is a local apic
+   216 000001CE 83F810                      cmp  eax,0x10
+   217 000001D1 5B                          pop  ebx
+   218 000001D2 BE[79000000]                mov  esi,cpunolapic
+   219 000001D7 0F85C2000000                jnz  cpuid_last_puts
+   220 000001DD BE[72000000]                mov  esi,cpulapic
+   221 000001E2 E8C0FEFFFF                  call puts
+   222                                  
+   223 000001E7 A1[08020000]                mov  eax,[feature_ecx]
+   224 000001EC 2500002000                  and  eax,1 << 21        ; x2apic feature bit
+   225 000001F1 740A                        jz   no_x2apic
+   226 000001F3 BE[82000000]                mov  esi,cpux2apix
+   227 000001F8 E8AAFEFFFF                  call puts
+   228                                  no_x2apic :
+   229                                  
+   230 000001FD 89C8                        mov  eax,ecx
+   231 000001FF E8BFFEFFFF                  call putx               ; Athlon +1600 says 0x00040010
+   232                                                              ; Bochs        says 0x00050010
+   233                                                              ; real intel   says 0x00050014
+   234                                                              ; real amd     says 0x80050014
+   235                                  
+   236                                  ;   mov  ecx,0x1b
+   237                                  ;   rdmsr
+   238                                  ;   and  eax,0x100          ; are we the bootstrap processor?
+   239                                  ;   jz   i_am_non_boot_cpu
+   240                                  
+   241                                      ; ---- restart other cpus (see swdev3a, sec 10.7, pg 484 / 10-45)
    242                                  
-   243                                      ; ---- restart other cpus (see swdev3a, sec 10.7, pg 484 / 10-45)
-   244                                  
-   245 00000204 53                          push ebx
-   246                                  ;    mov  dword [0xfee00310],0xff000000  ; Broadcast
-   247 00000205 C7050003E0FE00450C-         mov  dword [0xfee00300],0x000c4500  ; Physical, fixed, excluding self, INIT
-   248 0000020E 00                 
-   249                                  
-   250 0000020F B800200000                  mov  eax,0x2000         ; oz syscall opcode - sleep 1 tick
-   251 00000214 BA02000000                  mov  edx,2
-   252 00000219 CDFF                        int  0xff
+   243 00000204 53                          push ebx
+   244 00000205 C7050003E0FE00450C-         mov  dword [0xfee00300],0x000c4500  ; Physical, fixed, excluding self, INIT
+   245 0000020E 00                 
+   246                                  
+   247 0000020F B800200000                  mov  eax,0x2000         ; oz syscall opcode - sleep 1 tick
+   248 00000214 BA02000000                  mov  edx,2
+   249 00000219 CDFF                        int  0xff
+   250                                  
+   251 0000021B B800FE0000                  mov  eax,0xfe00         ; oz syscall opcode - get sipi_vector
+   252 00000220 CDFF                        int  0xff
    253                                  
-   254 0000021B C7050003E0FE01460C-         mov  dword [0xfee00300],(kstack_loc>>12) | 0xc4600               ; STARTUP
-   255 00000224 00                 
-   256                                  
-   257 00000225 B800200000                  mov  eax,0x2000         ; oz syscall opcode - sleep 1 tick
-   258 0000022A BA02000000                  mov  edx,2
-   259 0000022F CDFF                        int  0xff
-   260                                  
-   261                                      ; the docs all say kick them twice ...
+   254 00000222 C1E80C                      shr  eax,12
+   255 00000225 0D00460C00                  or   eax,0xc4600        ; STARTUP
+   256 0000022A A30003E0FE                  mov  dword [0xfee00300],eax
+   257 0000022F 50                          push eax
+   258                                  
+   259 00000230 B800200000                  mov  eax,0x2000         ; oz syscall opcode - sleep 1 tick
+   260 00000235 BA02000000                  mov  edx,2
+   261 0000023A CDFF                        int  0xff
    262                                  
-   263 00000231 C7050003E0FE01460C-         mov  dword [0xfee00300],(kstack_loc>>12) | 0xc4600               ; STARTUP
-   264 0000023A 00                 
-   265                                  
-   266 0000023B B800200000                  mov  eax,0x2000         ; oz syscall opcode - sleep 1 tick
-   267 00000240 BA02000000                  mov  edx,2
-   268 00000245 CDFF                        int  0xff
-   269                                  
-   270                                  ;    mov  ecx,0x100000
-   271                                  ;ipi_loop2 :
-   272                                  ;    mov  eax,[0xfee00300]               ; 0xc0602
-   273                                  ;    and  eax,1 << 12                    ; watch delivery status
-   274                                  ;    loopz ipi_loop2
-   275                                  
-   276                                  ;   pop  ebx
-   277                                  ;   mov  eax,ecx
-   278                                  ;   call putx
-   279                                  ;   mov  byte [ebx],'*'
-   280                                  ;   inc  ebx
-   281                                  ;   push ebx
-   282                                  
-   283                                      ; ---- report on the expected number of logical processors in each core
+   263                                      ; the docs all say kick them twice ...
+   264                                  
+   265 0000023C 58                          pop  eax
+   266 0000023D A30003E0FE                  mov  dword [0xfee00300],eax
+   267                                  
+   268 00000242 B800200000                  mov  eax,0x2000         ; oz syscall opcode - sleep 1 tick
+   269 00000247 BA02000000                  mov  edx,2
+   270 0000024C CDFF                        int  0xff
+   271                                  
+   272                                  ;    mov  ecx,0x100000
+   273                                  ;ipi_loop2 :
+   274                                  ;    mov  eax,[0xfee00300]               ; 0xc0602
+   275                                  ;    and  eax,1 << 12                    ; watch delivery status
+   276                                  ;    loopz ipi_loop2
+   277                                  
+   278                                  ;   pop  ebx
+   279                                  ;   mov  eax,ecx
+   280                                  ;   call putx
+   281                                  ;   mov  byte [ebx],'*'
+   282                                  ;   inc  ebx
+   283                                  ;   push ebx
    284                                  
-   285 00000247 A1[04020000]                mov  eax,[feature_ebx]
-   286 0000024C C1E810                      shr  eax,16
-   287 0000024F 25FF000000                  and  eax,0xff           ; number of threads per core
-   288 00000254 83C030                      add  eax,'0'
-   289 00000257 5B                          pop  ebx
-   290 00000258 8803                        mov  [ebx],al
-   291 0000025A 43                          inc  ebx
-   292 0000025B C6033B                      mov  byte [ebx],';'
-   293 0000025E 43                          inc  ebx
-   294                                  
-   295                                      ; ---- check for vmx support
+   285                                      ; ---- report on the expected number of logical processors in each core
+   286                                  
+   287 0000024E A1[04020000]                mov  eax,[feature_ebx]
+   288 00000253 C1E810                      shr  eax,16
+   289 00000256 25FF000000                  and  eax,0xff           ; number of threads per core
+   290 0000025B 83C030                      add  eax,'0'
+   291 0000025E 5B                          pop  ebx
+   292 0000025F 8803                        mov  [ebx],al
+   293 00000261 43                          inc  ebx
+   294 00000262 C6033B                      mov  byte [ebx],';'
+   295 00000265 43                          inc  ebx
    296                                  
-   297 0000025F A1[08020000]                mov  eax,[feature_ecx]
-   298 00000264 E85AFEFFFF                  call putx
-   299                                  
-   300 00000269 A1[08020000]                mov  eax,[feature_ecx]
-   301 0000026E 83E020                      and  eax,1 << 5         ; vmx feature bit
-   302 00000271 740A                        jz   no_vmx
-   303 00000273 BE[8A000000]                mov  esi,cpuvmx
-   304 00000278 E82AFEFFFF                  call puts
-   305                                  no_vmx :
-   306                                  
-   307                                  ; can't rdmsr from ring 3
-   308                                  ;   mov  ecx,0x3a           ; IA32_FEATURE_CONTROL_MSR
-   309                                  ;   rdmsr
-   310                                  ;   call putx
-   311                                  
-   312                                      ; cpuunavil
+   297                                      ; ---- check for vmx support
+   298                                  
+   299 00000266 A1[08020000]                mov  eax,[feature_ecx]
+   300 0000026B E853FEFFFF                  call putx
+   301                                  
+   302 00000270 A1[08020000]                mov  eax,[feature_ecx]
+   303 00000275 83E020                      and  eax,1 << 5         ; vmx feature bit
+   304 00000278 740A                        jz   no_vmx
+   305 0000027A BE[8A000000]                mov  esi,cpuvmx
+   306 0000027F E823FEFFFF                  call puts
+   307                                  no_vmx :
+   308                                  
+   309                                  ; can't rdmsr from ring 3
+   310                                  ;   mov  ecx,0x3a           ; IA32_FEATURE_CONTROL_MSR
+   311                                  ;   rdmsr
+   312                                  ;   call putx
    313                                  
-   314                                      ; ---- get the topology
+   314                                      ; cpuunavil
    315                                  
-   316 0000027D 833D[00020000]0B            cmp  dword [level],0xb
-   317 00000284 720B                        jb   no_topology
-   318 00000286 53                          push ebx
-   319 00000287 B80B000000                  mov  eax,0xb
-   320 0000028C 31C9                        xor  ecx,ecx
-   321 0000028E 0FA2                        cpuid
-   322                                      ; ....
-   323 00000290 5B                          pop  ebx
-   324                                  
-   325                                  no_topology :
+   316                                      ; ---- get the topology
+   317                                  
+   318 00000284 833D[00020000]0B            cmp  dword [level],0xb
+   319 0000028B 720B                        jb   no_topology
+   320 0000028D 53                          push ebx
+   321 0000028E B80B000000                  mov  eax,0xb
+   322 00000293 31C9                        xor  ecx,ecx
+   323 00000295 0FA2                        cpuid
+   324                                      ; ....
+   325 00000297 5B                          pop  ebx
    326                                  
-   327 00000291 EB0A                        jmp  cpuid_end
+   327                                  no_topology :
    328                                  
-   329                                  i_am_non_boot_cpu :
-   330 00000293 BE[A5000000]                mov  esi,cpuzzz
-   331                                  
-   332                                  cpuid_last_puts :
-   333 00000298 E80AFEFFFF                  call puts
-   334                                  cpuid_end :
-   335                                  
-   336 0000029D B800020000                  mov  eax,0x0200         ; oz syscall opcode - klog print
-   337 000002A2 BE[00000000]                mov  esi,print_buf
-   338 000002A7 CDFF                        int  0xff
-   339                                  
-   340 000002A9 CF                          iret
+   329 00000298 EB0A                        jmp  cpuid_end
+   330                                  
+   331                                  i_am_non_boot_cpu :
+   332 0000029A BE[A5000000]                mov  esi,cpuzzz
+   333                                  
+   334                                  cpuid_last_puts :
+   335 0000029F E803FEFFFF                  call puts
+   336                                  cpuid_end :
+   337                                  
+   338 000002A4 B800020000                  mov  eax,0x0200         ; oz syscall opcode - klog print
+   339 000002A9 BE[00000000]                mov  esi,print_buf
+   340 000002AE CDFF                        int  0xff
    341                                  
-   342                                  ;   align 4096
+   342 000002B0 CF                          iret
    343                                  
-   344 000002AA 00<rept>                    times 4096-($-$$) db 0x00
+   344                                  ;   align 4096
    345                                  
-   346                                  
-   347                                  ; r/w data - the second 4k ---------------------------------------
-   348                                  section .data
-   349                                  
-   350                                  print_buf :                     ; 0x401000 the buffer to be written
+   346 000002B1 00<rept>                    times 4096-($-$$) db 0x00
+   347                                  
+   348                                  
+   349                                  ; r/w data - the second 4k ---------------------------------------
+   350                                  section .data
    351                                  
-   352 00000000 00<rept>                    times 512 db 0x00
+   352                                  print_buf :                     ; 0x401000 the buffer to be written
    353                                  
-   354 00000200 00000000                level       dd 0
-   355 00000204 00000000                feature_ebx dd 0                ; saved feature flags
-   356 00000208 00000000                feature_ecx dd 0
-   357 0000020C 00000000                feature_edx dd 0
-   358                                  
-   359                                  id_buf :                        ; 0x401240
+   354 00000000 00<rept>                    times 512 db 0x00
+   355                                  
+   356 00000200 00000000                level       dd 0
+   357 00000204 00000000                feature_ebx dd 0                ; saved feature flags
+   358 00000208 00000000                feature_ecx dd 0
+   359 0000020C 00000000                feature_edx dd 0
    360                                  
-   361                                      ; all boot apps attached to the kernel must be
-   362                                      ; a multiple of a page in length.  this space
-   363                                      ; is also used for the application stack
-   364                                  
-   365 00000210 00<rept>                    times 4096*1-($-$$) db 0x00
+   361                                  id_buf :                        ; 0x401240
+   362                                  
+   363                                      ; all boot apps attached to the kernel must be
+   364                                      ; a multiple of a page in length.  this space
+   365                                      ; is also used for the application stack
    366                                  
-   367                                  end :
+   367 00000210 00<rept>                    times 4096*1-($-$$) db 0x00
    368                                  
+   369                                  end :
+   370                                  

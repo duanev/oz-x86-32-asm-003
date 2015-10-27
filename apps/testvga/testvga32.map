@@ -22,9 +22,9 @@ hdrsec          0x0000000000400000       0x20
 .eh_frame       0x000000000040003c      0x2a0
  .eh_frame      0x000000000040003c      0x2a0 testvga32.o
 
-.text           0x00000000004002dc      0x76c
+.text           0x00000000004002dc      0x7b1
  *(.text)
- .text          0x00000000004002dc      0x76c testvga32.o
+ .text          0x00000000004002dc      0x7b1 testvga32.o
                 0x00000000004002dc                syscall3
                 0x0000000000400301                syscall2
                 0x0000000000400323                syscall1
@@ -41,9 +41,9 @@ hdrsec          0x0000000000400000       0x20
                 0x00000000004006a7                hcollision
                 0x0000000000400753                vcollision
                 0x00000000004007ff                hthread
-                0x0000000000400892                vthread
-                0x0000000000400926                main
-                0x0000000000400a37                _start
+                0x00000000004008ba                vthread
+                0x000000000040096b                main
+                0x0000000000400a7c                _start
                 0x0000000000401000                . = 0x401000
 
 .data           0x0000000000401000     0x1000
@@ -64,8 +64,8 @@ endsec          0x0000000000402000        0x0
 LOAD testvga32.o
 OUTPUT(testvga32 binary)
 
-.debug_info     0x0000000000000000      0x77c
- .debug_info    0x0000000000000000      0x77c testvga32.o
+.debug_info     0x0000000000000000      0x7a9
+ .debug_info    0x0000000000000000      0x7a9 testvga32.o
 
 .debug_abbrev   0x0000000000000000      0x212
  .debug_abbrev  0x0000000000000000      0x212 testvga32.o
@@ -74,11 +74,11 @@ OUTPUT(testvga32 binary)
  .debug_aranges
                 0x0000000000000000       0x20 testvga32.o
 
-.debug_line     0x0000000000000000      0x174
- .debug_line    0x0000000000000000      0x174 testvga32.o
+.debug_line     0x0000000000000000      0x17c
+ .debug_line    0x0000000000000000      0x17c testvga32.o
 
-.debug_str      0x0000000000000000      0x2b9
- .debug_str     0x0000000000000000      0x2b9 testvga32.o
+.debug_str      0x0000000000000000      0x2be
+ .debug_str     0x0000000000000000      0x2be testvga32.o
 
 .comment        0x0000000000000000       0x12
  .comment       0x0000000000000000       0x12 testvga32.o

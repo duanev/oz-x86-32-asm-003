@@ -29,11 +29,22 @@ bits 32
 ;   exit:
 
 syscall_klog :
-    pusha
-    mov  ebx,2 * 160        ; line 3
+    push ebx
+    mov  ebx,5 * 160        ; line 6
     call puts_vga
-    popa
+    pop  ebx
     xor  eax,eax
+    iret
+
+;------------------------------------------------------------------
+;   syscall_sipi_vector : get the entry vector for non-boot cpus
+;
+;   entry:
+;   exit:
+;       eax = N cpus
+
+syscall_sipi_vector :
+    mov  eax,sipi_vector
     iret
 
 ;------------------------------------------------------------------
@@ -179,7 +190,9 @@ syscall_request_pmem_access :
 ;       eax = -1 fail
 
 map_pmem :
-    pusha
+    push ebx
+    push edi
+
     invlpg [edx]
     push edx
     mov  ebx,cr3
@@ -210,11 +223,13 @@ map_pmem_have_pgtbl :
     ; FIXME yup, big security hole if called by ring 0! And it is ...
     or   eax,7                  ; user, r/w, present
     mov  [ebx+edx],eax          ; update page directory
-    popa
     xor  eax,eax                ; 0
+map_pmem_exit :
+    pop  edi
+    pop  ebx
     ret
 
 map_pmem_fail :
     dec  eax                    ; -1
-    ret
+    jmp  map_pmem_exit
 

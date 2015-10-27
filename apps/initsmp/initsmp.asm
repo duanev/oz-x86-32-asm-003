@@ -18,8 +18,6 @@
 bits 32
 org 0x400000                    ; ozapp program load address
 
-kstack_loc  equ     0x1000      ; a priori knowlege of kernel stack ...
-
 ; ozapp header
 
 header :
@@ -238,14 +236,19 @@ no_x2apic :
     ; ---- restart other cpus (see swdev3a, sec 10.7, pg 484 / 10-45)
 
     push ebx
-;    mov  dword [0xfee00310],0xff000000  ; Broadcast
     mov  dword [0xfee00300],0x000c4500  ; Physical, fixed, excluding self, INIT
 
     mov  eax,0x2000         ; oz syscall opcode - sleep 1 tick
     mov  edx,2
     int  0xff
 
-    mov  dword [0xfee00300],(kstack_loc>>12) | 0xc4600               ; STARTUP
+    mov  eax,0xfe00         ; oz syscall opcode - get sipi_vector
+    int  0xff
+
+    shr  eax,12
+    or   eax,0xc4600        ; STARTUP
+    mov  dword [0xfee00300],eax
+    push eax
 
     mov  eax,0x2000         ; oz syscall opcode - sleep 1 tick
     mov  edx,2
@@ -253,7 +256,8 @@ no_x2apic :
 
     ; the docs all say kick them twice ...
 
-    mov  dword [0xfee00300],(kstack_loc>>12) | 0xc4600               ; STARTUP
+    pop  eax
+    mov  dword [0xfee00300],eax
 
     mov  eax,0x2000         ; oz syscall opcode - sleep 1 tick
     mov  edx,2
