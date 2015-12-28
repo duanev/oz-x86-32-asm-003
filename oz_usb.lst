@@ -48,7 +48,7 @@
     48                                  ; 2009/08/01 - 0.03.00 - djv - create the OZ app execution container using
     49                                  ;                              TSSes, paging, and rings 0 and 3.  begin to
     50                                  ;                              play with system calls.
-    51                                  ; 2015/10/12 - 0.03.01 - djv - cleanup, add smp usermode tss structs, sleep,
+    51                                  ; 2015/10/26 - 0.03.01 - djv - cleanup, add smp usermode tss structs, sleep,
     52                                  ;                              wakeup, and ipi for user thread creation.
     53                                  
     54                                  %ifdef USB
@@ -155,7 +155,7 @@
    155                                      ;8 - dark grey          
    156                                  
    157 00000067 A1[0002]                    mov  ax,[stage2]        ; check the signature byte
-   158 0000006A 0306[0202]                  add  ax,[stage2+2]      ; stage2 might already have been loaded (pxe)
+   158 0000006A 0306[0202]                  add  ax,[stage2+2]      ; stage2 might already have been loaded
    159 0000006E 3DA17A                      cmp  ax,0x7a6f+0x32
    160 00000071 741D                        jz   stage2_present
    161                                  
@@ -225,9 +225,9 @@
    225                                  puts_vga_rm_done :
    226 000000C5 C3                          ret
    227                                  
-   228 000000C6 4F5A2076302E30332E-     bootmsg     db      "OZ v0.03.01 - 2015/10/12 ",0
+   228 000000C6 4F5A2076302E30332E-     bootmsg     db      "OZ v0.03.01 - 2015/10/26 ",0
    229 000000CF 3031202D2032303135-
-   230 000000D8 2F31302F31322000   
+   230 000000D8 2F31302F32362000   
    231 000000E0 73746167652032206C-     s2errmsg    db      "stage 2 load failure ",0
    232 000000E9 6F6164206661696C75-
    233 000000F2 72652000           
@@ -284,7 +284,7 @@
    284                                  ; If a boot loader only loads 512 bytes in the first pass, the following
    285                                  ; code won't appear in memory until the code above has completed.  Other
    286                                  ; loaders however can load the entire OZ kernel image into memory in one
-   287                                  ; shot.
+   287                                  ; shot. (pxe)
    288                                  
    289                                  bits 16
    290                                  
@@ -297,15 +297,15 @@
    297                                  ; adjust this if you want to change the supported number of cpus
    298                                  max_ncpus_l2   equ 7        ; log2(max_ncpus) (128 => 7)
    299                                  
-   300                                  ; adjust this if you want to change the stack size for each cpu
+   300                                  ; adjust this to change the total stack size for all cpus
    301                                  kstack_size_l2 equ 13       ; log2 stack space for all cpus (13 => 8k)
    302                                  
    303                                  kstack_size    equ (1 << kstack_size_l2)
    304                                  
    305                                  ; adjust these if you want to move things around
-   306                                  kstack_loc  equ 0x1000      ; base - each cpu starts at (1 << kstact_size_l2)
-   307                                  tss_f08_stk equ 0x6000      ; stack for double fault (grows down)
-   308                                  tss_f10_stk equ 0x7000      ; stack for tss fault (grows down)
+   306                                  kstack_loc  equ 0x1000      ; base for cpu stacks
+   307                                  tss_f08_stk equ 0x6000      ; stack for double fault (grows down from ...)
+   308                                  tss_f10_stk equ 0x7000      ; stack for tss fault (grows down from ...)
    309                                  sipi_vector equ 0x7000      ; where the non-boot cpus will start
    310                                  
    311                                  ; ---------------------

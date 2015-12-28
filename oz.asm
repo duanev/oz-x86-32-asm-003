@@ -1182,7 +1182,7 @@ kernel_data_size equ ($-datastart)
 
 ; Add larger tests here if the times expression turns up negative, to make
 ; the kernel image size right, but your next problem will be that the boot
-; loader will likely refuse to load all these sectors in one pass.
+; loader will likely refuse to load all these sectors during stage2.
 
 section .fill
 

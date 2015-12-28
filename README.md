@@ -45,7 +45,7 @@ changed so the minimum version might be larger.
     $ qemu-system-i386 -smp 8 -boot a -fda oz_fd -monitor stdio
 
 To exit qemu if it has grabbed the cursor and won't give it up,
-try <ctrl><alt>2 (or I think they moved it to <ctrl><alt>3 recently)
+try *ctrl-alt*2 (or I think they moved it to *ctrl-alt*3 recently)
 to switch to monitor mode and then enter the command 'quit'.
 
 Or to run qemu with PGDB:
@@ -54,7 +54,7 @@ Or to run qemu with PGDB:
     $ qemu-system-i386 -smp 4 -boot a -fda oz_fd -s -S -monitor stdio
     (in another terminal)
     $ cd pgdb
-    $ python pgdb.py -nasmlst ../oz-x86-32-asm-003/oz_fd.lst=0,8 -nasmlst ../oz-x86-32-asm-003/apps/initsmp/initsmp.lst=f:400000 -gccmap ../oz-x86-32-asm-003/apps/testvga/testvga32.map=f -gccmap ../oz-x86-32-asm-003/apps/testfpu/testfpu32.map=f
+    $ python pgdb.py -nasmlst ../oz-x86-32-asm-003/oz_fd.lst=0,8 -nasmlst ../oz-x86-32-asm-003/apps/initsmp/initsmp.lst=f -gccmap ../oz-x86-32-asm-003/apps/testvga/testvga32.map=f -gccmap ../oz-x86-32-asm-003/apps/testfpu/testfpu32.map=f
     (you can press 'j' immediately to jump to 0x7c00 since PGDB
     can tell where the origin of the first .lst file is declared)
 
