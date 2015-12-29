@@ -421,18 +421,30 @@ int_handler_simdfpe :
     pop  esi
     jmp  int_handler_show_eip
 
-align 4
-int_handler_timer :     
+; indicate that an irq has been serviced
+display_irq :
     push eax
-    push ebx
     mov  ax,videosel        ; point gs at video memory
     mov  gs,ax          
-    mov  bl,byte [gs:1]     ; inc the color of the first two chars
-    inc  bl
-    and  bl,0xf             ; just the foreground
-    mov  byte [gs:1],bl
-    mov  byte [gs:3],bl
+    mov  al,bh              ; display irq "number"
+    and  ebx,0xff
+    mov  [gs:ebx],al
+    mov  al,[gs:ebx+1]
+    inc  al
+    or   al,0x8             ; avoid black and dark colors
+    and  al,0xf
+    mov  [gs:ebx+1],al      ; change character color
+    pop  eax
+    ret
+
+align 4
+int_handler_timer :
+    push ebx
+    mov  bx,('t' << 8) + 30*2
+    call display_irq
     pop  ebx
+
+    push eax
 
     ; ---- wakeup any sleeping cpus (see syscall_sleep)
 
@@ -458,24 +470,23 @@ no_sleepers :
 
 align 4
 int_handler_kbd :
+    push ebx
+    mov  bx,('k' << 8) + 31*2
+    call display_irq
+    pop  ebx
+
     push eax
-    mov  ax,videosel        ; point gs at video memory
-    mov  gs,ax          
 
     push ebx
-    mov  ebx,30*2
+    mov  ebx,27*2
     in   al,0x60
     push eax
     call putbx_vga
     pop  eax
+    pop  ebx
 
     cmp  al,0x53            ; scan code for the DEL key
     jz   reboot
-
-    mov  al,[gs:34*2]
-    inc  al
-    mov  [gs:34*2],al       ; change a character on screen
-    pop  ebx
 
     mov  al,0x20
     out  0x20,al            ; signal end of interrupt (eoi)
@@ -485,6 +496,11 @@ int_handler_kbd :
 
 align 4
 int_handler_hw02 :          ; cascade
+    push ebx
+    mov  bx,('c' << 8) + 32*2
+    call display_irq
+    pop  ebx
+
     push esi
     mov  esi,int34msg
     call irq_print_msg
@@ -493,6 +509,11 @@ int_handler_hw02 :          ; cascade
 
 align 4
 int_handler_hw03 :          ; serial port 2
+    push ebx
+    mov  bx,('3' << 8) + 33*2
+    call display_irq
+    pop  ebx
+
     push esi
     mov  esi,int35msg
     call irq_print_msg
@@ -501,6 +522,11 @@ int_handler_hw03 :          ; serial port 2
 
 align 4
 int_handler_hw04 :          ; serial port 1
+    push ebx
+    mov  bx,('4' << 8) + 34*2
+    call display_irq
+    pop  ebx
+
     push esi
     mov  esi,int36msg
     call irq_print_msg
@@ -509,6 +535,11 @@ int_handler_hw04 :          ; serial port 1
 
 align 4
 int_handler_hw05 :          ; parallel port 2 or sound card
+    push ebx
+    mov  bx,('5' << 8) + 35*2
+    call display_irq
+    pop  ebx
+
     push esi
     mov  esi,int37msg
     call irq_print_msg
@@ -517,6 +548,11 @@ int_handler_hw05 :          ; parallel port 2 or sound card
 
 align 4
 int_handler_hw06 :          ; floppy disk controller
+    push ebx
+    mov  bx,('6' << 8) + 36*2
+    call display_irq
+    pop  ebx
+
     push esi
     mov  esi,int38msg
     call irq_print_msg
@@ -525,10 +561,15 @@ int_handler_hw06 :          ; floppy disk controller
 
 align 4
 int_handler_hw07 :          ; parallel port 1
-    push esi
-    mov  esi,int39msg
-    call irq_print_msg
-    pop  esi
+    push ebx
+    mov  bx,('7' << 8) + 37*2
+    call display_irq
+    pop  ebx
+
+;   push esi                ; 7 seems to happen a lot on some boxes
+;   mov  esi,int39msg
+;   call irq_print_msg
+;   pop  esi
     mov  al,0x20
     out  0x20,al            ; signal end of interrupt (eoi)
     iret
@@ -536,6 +577,11 @@ int_handler_hw07 :          ; parallel port 1
 
 align 4
 int_handler_hw08 :          ; RTC
+    push ebx
+    mov  bx,('8' << 8) + 38*2
+    call display_irq
+    pop  ebx
+
     push esi
     mov  esi,int40msg
     call irq_print_msg
@@ -544,6 +590,11 @@ int_handler_hw08 :          ; RTC
 
 align 4
 int_handler_hw09 :          ; acpi
+    push ebx
+    mov  bx,('9' << 8) + 39*2
+    call display_irq
+    pop  ebx
+
     push esi
     mov  esi,int41msg
     call irq_print_msg
@@ -552,6 +603,11 @@ int_handler_hw09 :          ; acpi
 
 align 4
 int_handler_hw10 :
+    push ebx
+    mov  bx,('a' << 8) + 40*2
+    call display_irq
+    pop  ebx
+
     push esi
     mov  esi,int42msg
     call irq_print_msg
@@ -560,6 +616,11 @@ int_handler_hw10 :
 
 align 4
 int_handler_hw11 :
+    push ebx
+    mov  bx,('b' << 8) + 41*2
+    call display_irq
+    pop  ebx
+
     push esi
     mov  esi,int43msg
     call irq_print_msg
@@ -568,6 +629,11 @@ int_handler_hw11 :
 
 align 4
 int_handler_hw12 :          ; mouse
+    push ebx
+    mov  bx,('c' << 8) + 42*2
+    call display_irq
+    pop  ebx
+
     push esi
     mov  esi,int44msg
     call irq_print_msg
@@ -576,6 +642,11 @@ int_handler_hw12 :          ; mouse
 
 align 4
 int_handler_hw13 :          ; co-processor
+    push ebx
+    mov  bx,('d' << 8) + 43*2
+    call display_irq
+    pop  ebx
+
     push esi
     mov  esi,int45msg
     call irq_print_msg
@@ -584,6 +655,11 @@ int_handler_hw13 :          ; co-processor
 
 align 4
 int_handler_hw14 :          ; ata disk controller primary
+    push ebx
+    mov  bx,('e' << 8) + 44*2
+    call display_irq
+    pop  ebx
+
     push esi
     mov  esi,int46msg
     call irq_print_msg
@@ -592,6 +668,11 @@ int_handler_hw14 :          ; ata disk controller primary
 
 align 4
 int_handler_hw15 :          ; ata disk controller secondary
+    push ebx
+    mov  bx,('f' << 8) + 45*2
+    call display_irq
+    pop  ebx
+
     push esi
     mov  esi,int47msg
     call irq_print_msg

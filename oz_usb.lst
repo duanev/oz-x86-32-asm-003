@@ -97,7 +97,7 @@
     97                                  %ifdef USB
     98 0000000B 0000                        dw 0                    ; Bytes per sector
     99 0000000D 00                          db 0                    ; Sectors per cluster
-   100 0000000E 3A00                        dw kisectors            ; Number of reserved sectors
+   100 0000000E 3B00                        dw kisectors            ; Number of reserved sectors
    101 00000010 00                          db 0                    ; Number of FATs
    102 00000011 0000                        dw 0                    ; Number of dirs in root
    103 00000013 0000                        dw 0                    ; Number of sectors in volume
@@ -166,7 +166,7 @@
    166                                      ; boot device, and that it can immediately follow the MBR.
    167                                  
    168 00000073 B402                        mov  ah,02h
-   169 00000075 B03A                        mov  al,kisectors       ; number of sectors to load
+   169 00000075 B03B                        mov  al,kisectors       ; number of sectors to load
    170 00000077 BB[0002]                    mov  bx,stage2
    171 0000007A B90200                      mov  cx,2
    172 0000007D 5A                          pop  dx                 ; recover BIOS drive number
@@ -427,7 +427,7 @@
    427 000002F7 89C2                        mov  edx,eax
    428 000002F9 A3[10030000]                mov  [idtr_addr],eax
    429                                  
-   430 000002FE BE[940D0000]                mov  esi,irq_setup_table
+   430 000002FE BE[F80D0000]                mov  esi,irq_setup_table
    431 00000303 B900010000                  mov  ecx,irq_setup_table_size
    432                                  irq_init :
    433 00000308 31C0                        xor  eax,eax
@@ -443,7 +443,7 @@
    443 00000325 66B80800                    mov  ax,codesel
    444                                  irq_init_task_gate :
    445 00000329 66894202                    mov  word [edx+2],ax
-   446 0000032D 678AA7[900D]                mov  ah,byte [bx+irq_types]
+   446 0000032D 678AA7[F40D]                mov  ah,byte [bx+irq_types]
    447 00000332 30C0                        xor  al,al
    448 00000334 66894204                    mov  word [edx+4],ax
    449 00000338 83C208                      add  edx,8
@@ -471,13 +471,13 @@
    471                                  
    472 0000036F BA0000E0FE                  mov  edx,0xfee00000     ; phys address
    473 00000374 B900100000                  mov  ecx,0x1000         ; length
-   474 00000379 E8CB0C0000                  call map_pmem
+   474 00000379 E82F0D0000                  call map_pmem
    475                                  
    476                                      ; do the ioapic while we're at it
    477 0000037E BA0000C0FE                  mov  edx,0xfec00000     ; phys address
    478 00000383 52                          push edx
    479 00000384 B900100000                  mov  ecx,0x1000         ; length
-   480 00000389 E8BB0C0000                  call map_pmem
+   480 00000389 E81F0D0000                  call map_pmem
    481 0000038E 5A                          pop  edx
    482 0000038F C70201000000                mov  dword [edx],1
    483 00000395 A11000C0FE                  mov  eax,[0xfec00010]
@@ -501,7 +501,7 @@
    501                                  
    502                                      ; ---- check for init apps
    503                                  
-   504 000003BA BB[20000000]                mov  ebx, kend
+   504 000003BA BB[B00F0000]                mov  ebx, kend
    505                                  app_loop :
    506 000003BF 8B4318                      mov  eax, [ebx+0x18]    ; load the entry address
    507 000003C2 813B6F7A6170                cmp  dword [ebx], 0x70617a6f  ; check for "ozap"
@@ -1033,7 +1033,7 @@
   1033                              <1> int_handler_div0 :
   1034 00000898 56                  <1>     push esi
   1035 00000899 BE[A2050000]        <1>     mov  esi,int00msg
-  1036 0000089E E861040000          <1>     call irq_print_msg
+  1036 0000089E E8C5040000          <1>     call irq_print_msg
   1037 000008A3 5E                  <1>     pop  esi
   1038 000008A4 E9EC000000          <1>     jmp  int_handler_show_eip
   1039                              <1> 
@@ -1041,7 +1041,7 @@
   1041                              <1> int_handler_debug :
   1042 000008AC 56                  <1>     push esi
   1043 000008AD BE[B2050000]        <1>     mov  esi,int01msg
-  1044 000008B2 E84D040000          <1>     call irq_print_msg
+  1044 000008B2 E8B1040000          <1>     call irq_print_msg
   1045 000008B7 5E                  <1>     pop  esi
   1046 000008B8 E9D8000000          <1>     jmp  int_handler_show_eip
   1047                              <1> 
@@ -1049,7 +1049,7 @@
   1049                              <1> int_handler_nmi :
   1050 000008C0 56                  <1>     push esi
   1051 000008C1 BE[C3050000]        <1>     mov  esi,int02msg
-  1052 000008C6 E839040000          <1>     call irq_print_msg
+  1052 000008C6 E89D040000          <1>     call irq_print_msg
   1053 000008CB 5E                  <1>     pop  esi
   1054 000008CC CF                  <1>     iret
   1055                              <1>     ;jmp  reboot_on_alt_key
@@ -1058,7 +1058,7 @@
   1058                              <1> int_handler_brkp :
   1059 000008D0 56                  <1>     push esi
   1060 000008D1 BE[C8050000]        <1>     mov  esi,int03msg
-  1061 000008D6 E829040000          <1>     call irq_print_msg
+  1061 000008D6 E88D040000          <1>     call irq_print_msg
   1062 000008DB 5E                  <1>     pop  esi
   1063 000008DC E9B4000000          <1>     jmp  int_handler_show_eip
   1064                              <1> 
@@ -1066,7 +1066,7 @@
   1066                              <1> int_handler_ovrflw :
   1067 000008E4 56                  <1>     push esi
   1068 000008E5 BE[DE050000]        <1>     mov  esi,int04msg
-  1069 000008EA E815040000          <1>     call irq_print_msg
+  1069 000008EA E879040000          <1>     call irq_print_msg
   1070 000008EF 5E                  <1>     pop  esi
   1071 000008F0 E9A0000000          <1>     jmp  int_handler_show_eip
   1072                              <1> 
@@ -1074,7 +1074,7 @@
   1074                              <1> int_handler_bound :
   1075 000008F8 56                  <1>     push esi
   1076 000008F9 BE[F2050000]        <1>     mov  esi,int05msg
-  1077 000008FE E801040000          <1>     call irq_print_msg
+  1077 000008FE E865040000          <1>     call irq_print_msg
   1078 00000903 5E                  <1>     pop  esi
   1079 00000904 E98C000000          <1>     jmp  int_handler_show_eip
   1080                              <1> 
@@ -1082,7 +1082,7 @@
   1082                              <1> int_handler_invop :
   1083 0000090C 56                  <1>     push esi
   1084 0000090D BE[02060000]        <1>     mov  esi,int06msg
-  1085 00000912 E8ED030000          <1>     call irq_print_msg
+  1085 00000912 E851040000          <1>     call irq_print_msg
   1086 00000917 5E                  <1>     pop  esi
   1087 00000918 EB7B                <1>     jmp  int_handler_show_eip
   1088                              <1> 
@@ -1100,7 +1100,7 @@
   1100                              <1> int_handler_cpsego :
   1101 00000920 56                  <1>     push esi
   1102 00000921 BE[34060000]        <1>     mov  esi,int09msg
-  1103 00000926 E8D9030000          <1>     call irq_print_msg
+  1103 00000926 E83D040000          <1>     call irq_print_msg
   1104 0000092B 5E                  <1>     pop  esi
   1105 0000092C EB67                <1>     jmp  int_handler_show_eip
   1106                              <1> 
@@ -1109,7 +1109,7 @@
   1109                              <1>     ; ec = seg selector
   1110 00000930 56                  <1>     push esi
   1111 00000931 BE[5E060000]        <1>     mov  esi,int11msg
-  1112 00000936 E8C9030000          <1>     call irq_print_msg
+  1112 00000936 E82D040000          <1>     call irq_print_msg
   1113 0000093B 5E                  <1>     pop  esi
   1114 0000093C EB32                <1>     jmp  int_handler_show_ec_eip
   1115                              <1> 
@@ -1118,7 +1118,7 @@
   1118                              <1>     ; ec = seg selector
   1119 00000940 56                  <1>     push esi
   1120 00000941 BE[73060000]        <1>     mov  esi,int12msg
-  1121 00000946 E8B9030000          <1>     call irq_print_msg
+  1121 00000946 E81D040000          <1>     call irq_print_msg
   1122 0000094B 5E                  <1>     pop  esi
   1123 0000094C B904000000          <1>     mov  ecx,4
   1124 00000951 83C302              <1>     add  ebx,2
@@ -1126,7 +1126,7 @@
   1126 00000954 58                  <1>     pop  eax
   1127 00000955 E84EFBFFFF          <1>     call putx_vga
   1128 0000095A E2F8                <1>     loop int_handler_show_stack_loop
-  1129 0000095C E9F7030000          <1>     jmp  reboot_on_alt_key
+  1129 0000095C E95B040000          <1>     jmp  reboot_on_alt_key
   1130                              <1> 
   1131 00000961 90<rept>            <1> align 4
   1132                              <1> int_handler_gpf :
@@ -1136,7 +1136,7 @@
   1136                              <1> 
   1137 00000964 56                  <1>     push esi
   1138 00000965 BE[80060000]        <1>     mov  esi,int13msg
-  1139 0000096A E895030000          <1>     call irq_print_msg
+  1139 0000096A E8F9030000          <1>     call irq_print_msg
   1140 0000096F 5E                  <1>     pop  esi
   1141                              <1> int_handler_show_ec_eip :
   1142 00000970 65C60365            <1>     mov  byte [gs:ebx],'e'
@@ -1173,7 +1173,7 @@
   1173 000009D4 83C302              <1>     add  ebx,2
   1174 000009D7 89D0                <1>     mov  eax,edx
   1175 000009D9 E8CAFAFFFF          <1>     call putx_vga
-  1176 000009DE E975030000          <1>     jmp  reboot_on_alt_key
+  1176 000009DE E9D9030000          <1>     jmp  reboot_on_alt_key
   1177                              <1> 
   1178                              <1> int_handler_vm_gpf :
   1179 000009E3 53                  <1>     push ebx
@@ -1186,7 +1186,7 @@
   1186 000009ED 50                  <1>     push eax
   1187 000009EE 53                  <1>     push ebx
   1188 000009EF BE[D4070000]        <1>     mov  esi,intvmmsg
-  1189 000009F4 E80B030000          <1>     call irq_print_msg
+  1189 000009F4 E86F030000          <1>     call irq_print_msg
   1190 000009F9 65C6036F            <1>     mov  byte [gs:ebx],'o'
   1191 000009FD 83C302              <1>     add  ebx,2
   1192 00000A00 65C60370            <1>     mov  byte [gs:ebx],'p'
@@ -1231,7 +1231,7 @@
   1231 00000A58 BE[9A060000]        <1>     mov  esi,int14kmsg
   1232                              <1> 
   1233                              <1> int_handler_pgflt_msg :
-  1234 00000A5D E8A2020000          <1>     call irq_print_msg
+  1234 00000A5D E806030000          <1>     call irq_print_msg
   1235 00000A62 0F20D0              <1>     mov  eax,cr2
   1236 00000A65 E83EFAFFFF          <1>     call putx_vga                       ; print the addres of the fault
   1237 00000A6A E901FFFFFF          <1>     jmp  int_handler_show_ec_eip
@@ -1240,7 +1240,7 @@
   1240                              <1> int_handler_fpuerr :
   1241 00000A70 56                  <1>     push esi
   1242 00000A71 BE[C7060000]        <1>     mov  esi,int16msg
-  1243 00000A76 E889020000          <1>     call irq_print_msg
+  1243 00000A76 E8ED020000          <1>     call irq_print_msg
   1244                              <1>     ; FIXME flags identify error
   1245                              <1>     ;   IS - FPU stack overflow
   1246                              <1>     ;   IA - Invalid arithmetic operation
@@ -1256,7 +1256,7 @@
   1256                              <1>     ; ec = zero
   1257 00000A80 56                  <1>     push esi
   1258 00000A81 BE[DB060000]        <1>     mov  esi,int17msg
-  1259 00000A86 E879020000          <1>     call irq_print_msg
+  1259 00000A86 E8DD020000          <1>     call irq_print_msg
   1260 00000A8B 5E                  <1>     pop  esi
   1261 00000A8C 58                  <1>     pop  eax                    ; toss the ec
   1262 00000A8D E903FFFFFF          <1>     jmp  int_handler_show_eip
@@ -1265,7 +1265,7 @@
   1265                              <1> int_handler_machchk :
   1266 00000A94 56                  <1>     push esi
   1267 00000A95 BE[EC060000]        <1>     mov  esi,int18msg
-  1268 00000A9A E865020000          <1>     call irq_print_msg
+  1268 00000A9A E8C9020000          <1>     call irq_print_msg
   1269 00000A9F 5E                  <1>     pop  esi
   1270 00000AA0 E9F0FEFFFF          <1>     jmp  int_handler_show_eip
   1271                              <1> 
@@ -1273,1111 +1273,1192 @@
   1273                              <1> int_handler_simdfpe :
   1274 00000AA8 56                  <1>     push esi
   1275 00000AA9 BE[FB060000]        <1>     mov  esi,int19msg
-  1276 00000AAE E851020000          <1>     call irq_print_msg
+  1276 00000AAE E8B5020000          <1>     call irq_print_msg
   1277 00000AB3 5E                  <1>     pop  esi
   1278 00000AB4 E9DCFEFFFF          <1>     jmp  int_handler_show_eip
   1279                              <1> 
-  1280 00000AB9 90<rept>            <1> align 4
-  1281                              <1> int_handler_timer :     
-  1282 00000ABC 50                  <1>     push eax
-  1283 00000ABD 53                  <1>     push ebx
-  1284 00000ABE 66B82000            <1>     mov  ax,videosel        ; point gs at video memory
-  1285 00000AC2 8EE8                <1>     mov  gs,ax          
-  1286 00000AC4 658A1D01000000      <1>     mov  bl,byte [gs:1]     ; inc the color of the first two chars
-  1287 00000ACB FEC3                <1>     inc  bl
-  1288 00000ACD 80E30F              <1>     and  bl,0xf             ; just the foreground
-  1289 00000AD0 65881D01000000      <1>     mov  byte [gs:1],bl
-  1290 00000AD7 65881D03000000      <1>     mov  byte [gs:3],bl
-  1291 00000ADE 5B                  <1>     pop  ebx
-  1292                              <1> 
-  1293                              <1>     ; ---- wakeup any sleeping cpus (see syscall_sleep)
-  1294                              <1> 
-  1295 00000ADF A0[30030000]        <1>     mov  al,[enabled_lapic]
-  1296 00000AE4 08C0                <1>     or   al,al
-  1297 00000AE6 741B                <1>     jz   no_sleepers
-  1298                              <1> 
-  1299                              <1>     ; the race here is not important, we'll catch them on the next tick
-  1300                              <1> 
-  1301 00000AE8 A1[1C030000]        <1>     mov  eax,[sleepers]
-  1302 00000AED 09C0                <1>     or   eax,eax
-  1303 00000AEF 7412                <1>     jz   no_sleepers
-  1304 00000AF1 C1E018              <1>     shl  eax,24                     ; FIXME can only handle 8 cpus
-  1305 00000AF4 A31003E0FE          <1>     mov  dword [0xfee00310],eax     ; via the destination register ...
-  1306 00000AF9 B8FE480000          <1>     mov  eax,0x04800 + wakeup_int   ; no shrthnd, fixed, logical, edge
-  1307 00000AFE A30003E0FE          <1>     mov  dword [0xfee00300],eax
-  1308                              <1> 
-  1309                              <1> no_sleepers :
-  1310 00000B03 B020                <1>     mov  al,0x20        
-  1311 00000B05 E620                <1>     out  0x20,al            ; signal end of interrupt (eoi)
-  1312 00000B07 58                  <1>     pop  eax
-  1313 00000B08 CF                  <1>     iret                
-  1314                              <1> 
-  1315 00000B09 90<rept>            <1> align 4
-  1316                              <1> int_handler_kbd :
-  1317 00000B0C 50                  <1>     push eax
-  1318 00000B0D 66B82000            <1>     mov  ax,videosel        ; point gs at video memory
-  1319 00000B11 8EE8                <1>     mov  gs,ax          
+  1280                              <1> ; indicate that an irq has been serviced
+  1281                              <1> display_irq :
+  1282 00000AB9 50                  <1>     push eax
+  1283 00000ABA 66B82000            <1>     mov  ax,videosel        ; point gs at video memory
+  1284 00000ABE 8EE8                <1>     mov  gs,ax          
+  1285 00000AC0 88F8                <1>     mov  al,bh              ; display irq "number"
+  1286 00000AC2 81E3FF000000        <1>     and  ebx,0xff
+  1287 00000AC8 658803              <1>     mov  [gs:ebx],al
+  1288 00000ACB 658A4301            <1>     mov  al,[gs:ebx+1]
+  1289 00000ACF FEC0                <1>     inc  al
+  1290 00000AD1 0C08                <1>     or   al,0x8             ; avoid black and dark colors
+  1291 00000AD3 240F                <1>     and  al,0xf
+  1292 00000AD5 65884301            <1>     mov  [gs:ebx+1],al      ; change character color
+  1293 00000AD9 58                  <1>     pop  eax
+  1294 00000ADA C3                  <1>     ret
+  1295                              <1> 
+  1296 00000ADB 90                  <1> align 4
+  1297                              <1> int_handler_timer :     
+  1298 00000ADC 53                  <1>     push ebx
+  1299 00000ADD 66BB3C74            <1>     mov  bx,('t' << 8) + 30*2
+  1300 00000AE1 E8D3FFFFFF          <1>     call display_irq
+  1301 00000AE6 5B                  <1>     pop  ebx
+  1302                              <1> 
+  1303 00000AE7 50                  <1>     push eax
+  1304                              <1> 
+  1305                              <1>     ; ---- wakeup any sleeping cpus (see syscall_sleep)
+  1306                              <1> 
+  1307 00000AE8 A0[30030000]        <1>     mov  al,[enabled_lapic]
+  1308 00000AED 08C0                <1>     or   al,al
+  1309 00000AEF 741B                <1>     jz   no_sleepers
+  1310                              <1> 
+  1311                              <1>     ; the race here is not important, we'll catch them on the next tick
+  1312                              <1> 
+  1313 00000AF1 A1[1C030000]        <1>     mov  eax,[sleepers]
+  1314 00000AF6 09C0                <1>     or   eax,eax
+  1315 00000AF8 7412                <1>     jz   no_sleepers
+  1316 00000AFA C1E018              <1>     shl  eax,24                     ; FIXME can only handle 8 cpus
+  1317 00000AFD A31003E0FE          <1>     mov  dword [0xfee00310],eax     ; via the destination register ...
+  1318 00000B02 B8FE480000          <1>     mov  eax,0x04800 + wakeup_int   ; no shrthnd, fixed, logical, edge
+  1319 00000B07 A30003E0FE          <1>     mov  dword [0xfee00300],eax
   1320                              <1> 
-  1321 00000B13 53                  <1>     push ebx
-  1322 00000B14 BB3C000000          <1>     mov  ebx,30*2
-  1323 00000B19 E460                <1>     in   al,0x60
-  1324 00000B1B 50                  <1>     push eax
-  1325 00000B1C E877F9FFFF          <1>     call putbx_vga
-  1326 00000B21 58                  <1>     pop  eax
-  1327                              <1> 
-  1328 00000B22 3C53                <1>     cmp  al,0x53            ; scan code for the DEL key
-  1329 00000B24 0F8434020000        <1>     jz   reboot
-  1330                              <1> 
-  1331 00000B2A 65A044000000        <1>     mov  al,[gs:34*2]
-  1332 00000B30 FEC0                <1>     inc  al
-  1333 00000B32 65A244000000        <1>     mov  [gs:34*2],al       ; change a character on screen
-  1334 00000B38 5B                  <1>     pop  ebx
+  1321                              <1> no_sleepers :
+  1322 00000B0C B020                <1>     mov  al,0x20        
+  1323 00000B0E E620                <1>     out  0x20,al            ; signal end of interrupt (eoi)
+  1324 00000B10 58                  <1>     pop  eax
+  1325 00000B11 CF                  <1>     iret                
+  1326                              <1> 
+  1327 00000B12 90<rept>            <1> align 4
+  1328                              <1> int_handler_kbd :
+  1329 00000B14 53                  <1>     push ebx
+  1330 00000B15 66BB3E6B            <1>     mov  bx,('k' << 8) + 31*2
+  1331 00000B19 E89BFFFFFF          <1>     call display_irq
+  1332 00000B1E 5B                  <1>     pop  ebx
+  1333                              <1> 
+  1334 00000B1F 50                  <1>     push eax
   1335                              <1> 
-  1336 00000B39 B020                <1>     mov  al,0x20
-  1337 00000B3B E620                <1>     out  0x20,al            ; signal end of interrupt (eoi)
-  1338                              <1> 
-  1339 00000B3D 58                  <1>     pop  eax
-  1340 00000B3E CF                  <1>     iret
-  1341                              <1> 
-  1342 00000B3F 90                  <1> align 4
-  1343                              <1> int_handler_hw02 :          ; cascade
-  1344 00000B40 56                  <1>     push esi
-  1345 00000B41 BE[14070000]        <1>     mov  esi,int34msg
-  1346 00000B46 E8B9010000          <1>     call irq_print_msg
-  1347 00000B4B 5E                  <1>     pop  esi
-  1348 00000B4C E907020000          <1>     jmp  reboot_on_alt_key
+  1336 00000B20 53                  <1>     push ebx
+  1337 00000B21 BB36000000          <1>     mov  ebx,27*2
+  1338 00000B26 E460                <1>     in   al,0x60
+  1339 00000B28 50                  <1>     push eax
+  1340 00000B29 E86AF9FFFF          <1>     call putbx_vga
+  1341 00000B2E 58                  <1>     pop  eax
+  1342 00000B2F 5B                  <1>     pop  ebx
+  1343                              <1> 
+  1344 00000B30 3C53                <1>     cmp  al,0x53            ; scan code for the DEL key
+  1345 00000B32 0F848A020000        <1>     jz   reboot
+  1346                              <1> 
+  1347 00000B38 B020                <1>     mov  al,0x20
+  1348 00000B3A E620                <1>     out  0x20,al            ; signal end of interrupt (eoi)
   1349                              <1> 
-  1350 00000B51 90<rept>            <1> align 4
-  1351                              <1> int_handler_hw03 :          ; serial port 2
-  1352 00000B54 56                  <1>     push esi
-  1353 00000B55 BE[1E070000]        <1>     mov  esi,int35msg
-  1354 00000B5A E8A5010000          <1>     call irq_print_msg
-  1355 00000B5F 5E                  <1>     pop  esi
-  1356 00000B60 E9F3010000          <1>     jmp  reboot_on_alt_key
-  1357                              <1> 
-  1358 00000B65 90<rept>            <1> align 4
-  1359                              <1> int_handler_hw04 :          ; serial port 1
-  1360 00000B68 56                  <1>     push esi
-  1361 00000B69 BE[28070000]        <1>     mov  esi,int36msg
-  1362 00000B6E E891010000          <1>     call irq_print_msg
-  1363 00000B73 5E                  <1>     pop  esi
-  1364 00000B74 E9DF010000          <1>     jmp  reboot_on_alt_key
+  1350 00000B3C 58                  <1>     pop  eax
+  1351 00000B3D CF                  <1>     iret
+  1352                              <1> 
+  1353 00000B3E 90<rept>            <1> align 4
+  1354                              <1> int_handler_hw02 :          ; cascade
+  1355 00000B40 53                  <1>     push ebx
+  1356 00000B41 66BB4063            <1>     mov  bx,('c' << 8) + 32*2
+  1357 00000B45 E86FFFFFFF          <1>     call display_irq
+  1358 00000B4A 5B                  <1>     pop  ebx
+  1359                              <1> 
+  1360 00000B4B 56                  <1>     push esi
+  1361 00000B4C BE[14070000]        <1>     mov  esi,int34msg
+  1362 00000B51 E812020000          <1>     call irq_print_msg
+  1363 00000B56 5E                  <1>     pop  esi
+  1364 00000B57 E960020000          <1>     jmp  reboot_on_alt_key
   1365                              <1> 
-  1366 00000B79 90<rept>            <1> align 4
-  1367                              <1> int_handler_hw05 :          ; parallel port 2 or sound card
-  1368 00000B7C 56                  <1>     push esi
-  1369 00000B7D BE[32070000]        <1>     mov  esi,int37msg
-  1370 00000B82 E87D010000          <1>     call irq_print_msg
-  1371 00000B87 5E                  <1>     pop  esi
-  1372 00000B88 E9CB010000          <1>     jmp  reboot_on_alt_key
-  1373                              <1> 
-  1374 00000B8D 90<rept>            <1> align 4
-  1375                              <1> int_handler_hw06 :          ; floppy disk controller
-  1376 00000B90 56                  <1>     push esi
-  1377 00000B91 BE[3C070000]        <1>     mov  esi,int38msg
-  1378 00000B96 E869010000          <1>     call irq_print_msg
-  1379 00000B9B 5E                  <1>     pop  esi
-  1380 00000B9C E9B7010000          <1>     jmp  reboot_on_alt_key
-  1381                              <1> 
-  1382 00000BA1 90<rept>            <1> align 4
-  1383                              <1> int_handler_hw07 :          ; parallel port 1
-  1384 00000BA4 56                  <1>     push esi
-  1385 00000BA5 BE[46070000]        <1>     mov  esi,int39msg
-  1386 00000BAA E855010000          <1>     call irq_print_msg
-  1387 00000BAF 5E                  <1>     pop  esi
-  1388 00000BB0 B020                <1>     mov  al,0x20
-  1389 00000BB2 E620                <1>     out  0x20,al            ; signal end of interrupt (eoi)
-  1390 00000BB4 CF                  <1>     iret
-  1391                              <1>     ;jmp  reboot_on_alt_key
-  1392                              <1> 
-  1393 00000BB5 90<rept>            <1> align 4
-  1394                              <1> int_handler_hw08 :          ; RTC
-  1395 00000BB8 56                  <1>     push esi
-  1396 00000BB9 BE[50070000]        <1>     mov  esi,int40msg
-  1397 00000BBE E841010000          <1>     call irq_print_msg
-  1398 00000BC3 5E                  <1>     pop  esi
-  1399 00000BC4 E98F010000          <1>     jmp  reboot_on_alt_key
-  1400                              <1> 
-  1401 00000BC9 90<rept>            <1> align 4
-  1402                              <1> int_handler_hw09 :          ; acpi
-  1403 00000BCC 56                  <1>     push esi
-  1404 00000BCD BE[5A070000]        <1>     mov  esi,int41msg
-  1405 00000BD2 E82D010000          <1>     call irq_print_msg
-  1406 00000BD7 5E                  <1>     pop  esi
-  1407 00000BD8 E97B010000          <1>     jmp  reboot_on_alt_key
-  1408                              <1> 
-  1409 00000BDD 90<rept>            <1> align 4
-  1410                              <1> int_handler_hw10 :
-  1411 00000BE0 56                  <1>     push esi
-  1412 00000BE1 BE[64070000]        <1>     mov  esi,int42msg
-  1413 00000BE6 E819010000          <1>     call irq_print_msg
-  1414 00000BEB 5E                  <1>     pop  esi
-  1415 00000BEC E967010000          <1>     jmp  reboot_on_alt_key
-  1416                              <1> 
-  1417 00000BF1 90<rept>            <1> align 4
-  1418                              <1> int_handler_hw11 :
-  1419 00000BF4 56                  <1>     push esi
-  1420 00000BF5 BE[6E070000]        <1>     mov  esi,int43msg
-  1421 00000BFA E805010000          <1>     call irq_print_msg
-  1422 00000BFF 5E                  <1>     pop  esi
-  1423 00000C00 E953010000          <1>     jmp  reboot_on_alt_key
+  1366                              <1> align 4
+  1367                              <1> int_handler_hw03 :          ; serial port 2
+  1368 00000B5C 53                  <1>     push ebx
+  1369 00000B5D 66BB4233            <1>     mov  bx,('3' << 8) + 33*2
+  1370 00000B61 E853FFFFFF          <1>     call display_irq
+  1371 00000B66 5B                  <1>     pop  ebx
+  1372                              <1> 
+  1373 00000B67 56                  <1>     push esi
+  1374 00000B68 BE[1E070000]        <1>     mov  esi,int35msg
+  1375 00000B6D E8F6010000          <1>     call irq_print_msg
+  1376 00000B72 5E                  <1>     pop  esi
+  1377 00000B73 E944020000          <1>     jmp  reboot_on_alt_key
+  1378                              <1> 
+  1379                              <1> align 4
+  1380                              <1> int_handler_hw04 :          ; serial port 1
+  1381 00000B78 53                  <1>     push ebx
+  1382 00000B79 66BB4434            <1>     mov  bx,('4' << 8) + 34*2
+  1383 00000B7D E837FFFFFF          <1>     call display_irq
+  1384 00000B82 5B                  <1>     pop  ebx
+  1385                              <1> 
+  1386 00000B83 56                  <1>     push esi
+  1387 00000B84 BE[28070000]        <1>     mov  esi,int36msg
+  1388 00000B89 E8DA010000          <1>     call irq_print_msg
+  1389 00000B8E 5E                  <1>     pop  esi
+  1390 00000B8F E928020000          <1>     jmp  reboot_on_alt_key
+  1391                              <1> 
+  1392                              <1> align 4
+  1393                              <1> int_handler_hw05 :          ; parallel port 2 or sound card
+  1394 00000B94 53                  <1>     push ebx
+  1395 00000B95 66BB4635            <1>     mov  bx,('5' << 8) + 35*2
+  1396 00000B99 E81BFFFFFF          <1>     call display_irq
+  1397 00000B9E 5B                  <1>     pop  ebx
+  1398                              <1> 
+  1399 00000B9F 56                  <1>     push esi
+  1400 00000BA0 BE[32070000]        <1>     mov  esi,int37msg
+  1401 00000BA5 E8BE010000          <1>     call irq_print_msg
+  1402 00000BAA 5E                  <1>     pop  esi
+  1403 00000BAB E90C020000          <1>     jmp  reboot_on_alt_key
+  1404                              <1> 
+  1405                              <1> align 4
+  1406                              <1> int_handler_hw06 :          ; floppy disk controller
+  1407 00000BB0 53                  <1>     push ebx
+  1408 00000BB1 66BB4836            <1>     mov  bx,('6' << 8) + 36*2
+  1409 00000BB5 E8FFFEFFFF          <1>     call display_irq
+  1410 00000BBA 5B                  <1>     pop  ebx
+  1411                              <1> 
+  1412 00000BBB 56                  <1>     push esi
+  1413 00000BBC BE[3C070000]        <1>     mov  esi,int38msg
+  1414 00000BC1 E8A2010000          <1>     call irq_print_msg
+  1415 00000BC6 5E                  <1>     pop  esi
+  1416 00000BC7 E9F0010000          <1>     jmp  reboot_on_alt_key
+  1417                              <1> 
+  1418                              <1> align 4
+  1419                              <1> int_handler_hw07 :          ; parallel port 1
+  1420 00000BCC 53                  <1>     push ebx
+  1421 00000BCD 66BB4A37            <1>     mov  bx,('7' << 8) + 37*2
+  1422 00000BD1 E8E3FEFFFF          <1>     call display_irq
+  1423 00000BD6 5B                  <1>     pop  ebx
   1424                              <1> 
-  1425 00000C05 90<rept>            <1> align 4
-  1426                              <1> int_handler_hw12 :          ; mouse
-  1427 00000C08 56                  <1>     push esi
-  1428 00000C09 BE[78070000]        <1>     mov  esi,int44msg
-  1429 00000C0E E8F1000000          <1>     call irq_print_msg
-  1430 00000C13 5E                  <1>     pop  esi
-  1431 00000C14 E93F010000          <1>     jmp  reboot_on_alt_key
-  1432                              <1> 
-  1433 00000C19 90<rept>            <1> align 4
-  1434                              <1> int_handler_hw13 :          ; co-processor
-  1435 00000C1C 56                  <1>     push esi
-  1436 00000C1D BE[82070000]        <1>     mov  esi,int45msg
-  1437 00000C22 E8DD000000          <1>     call irq_print_msg
-  1438 00000C27 5E                  <1>     pop  esi
-  1439 00000C28 E92B010000          <1>     jmp  reboot_on_alt_key
+  1425                              <1> ;   push esi                ; 7 seems to happen a lot on some boxes
+  1426                              <1> ;   mov  esi,int39msg
+  1427                              <1> ;   call irq_print_msg
+  1428                              <1> ;   pop  esi
+  1429 00000BD7 B020                <1>     mov  al,0x20
+  1430 00000BD9 E620                <1>     out  0x20,al            ; signal end of interrupt (eoi)
+  1431 00000BDB CF                  <1>     iret
+  1432                              <1>     ;jmp  reboot_on_alt_key
+  1433                              <1> 
+  1434                              <1> align 4
+  1435                              <1> int_handler_hw08 :          ; RTC
+  1436 00000BDC 53                  <1>     push ebx
+  1437 00000BDD 66BB4C38            <1>     mov  bx,('8' << 8) + 38*2
+  1438 00000BE1 E8D3FEFFFF          <1>     call display_irq
+  1439 00000BE6 5B                  <1>     pop  ebx
   1440                              <1> 
-  1441 00000C2D 90<rept>            <1> align 4
-  1442                              <1> int_handler_hw14 :          ; ata disk controller primary
-  1443 00000C30 56                  <1>     push esi
-  1444 00000C31 BE[8C070000]        <1>     mov  esi,int46msg
-  1445 00000C36 E8C9000000          <1>     call irq_print_msg
-  1446 00000C3B 5E                  <1>     pop  esi
-  1447 00000C3C E917010000          <1>     jmp  reboot_on_alt_key
-  1448                              <1> 
-  1449 00000C41 90<rept>            <1> align 4
-  1450                              <1> int_handler_hw15 :          ; ata disk controller secondary
-  1451 00000C44 56                  <1>     push esi
-  1452 00000C45 BE[96070000]        <1>     mov  esi,int47msg
-  1453 00000C4A E8B5000000          <1>     call irq_print_msg
-  1454 00000C4F 5E                  <1>     pop  esi
-  1455 00000C50 E903010000          <1>     jmp  reboot_on_alt_key
-  1456                              <1> 
-  1457                              <1> ; called via the double fault task
-  1458 00000C55 90<rept>            <1> align 4
-  1459                              <1> int_handler_tg_dblflt :
-  1460 00000C58 56                  <1>     push esi
-  1461 00000C59 BE[26060000]        <1>     mov  esi,int08msg
-  1462 00000C5E E8A1000000          <1>     call irq_print_msg
-  1463 00000C63 5E                  <1>     pop  esi
-  1464 00000C64 E9EF000000          <1>     jmp  reboot_on_alt_key
-  1465                              <1> 
-  1466                              <1> ; called via the invalid tss task
-  1467 00000C69 90<rept>            <1> align 4
-  1468                              <1> int_handler_tg_invtss :
-  1469 00000C6C 56                  <1>     push esi
-  1470 00000C6D BE[51060000]        <1>     mov  esi,int10msg
-  1471 00000C72 E88D000000          <1>     call irq_print_msg
-  1472 00000C77 5E                  <1>     pop  esi
-  1473                              <1>     ; FIXME need to go back to previous tss to get ec via that stack
-  1474 00000C78 83C302              <1>     add  ebx,2
-  1475 00000C7B 58                  <1>     pop  eax                ; ec == invalid tss selector
-  1476 00000C7C E827F8FFFF          <1>     call putx_vga
-  1477 00000C81 E9D2000000          <1>     jmp  reboot_on_alt_key
-  1478                              <1> 
-  1479 00000C86 90<rept>            <1> align 4
-  1480                              <1> int_handler_spurious :
-  1481 00000C88 56                  <1>     push esi
-  1482 00000C89 BE[A0070000]        <1>     mov  esi,spuriousmsg
-  1483 00000C8E E871000000          <1>     call irq_print_msg
-  1484 00000C93 5E                  <1>     pop  esi
-  1485 00000C94 CF                  <1>     iret
-  1486                              <1> 
-  1487 00000C95 90<rept>            <1> align 4
-  1488                              <1> int_handler_apicerr :
-  1489 00000C98 56                  <1>     push esi
-  1490 00000C99 BE[AE070000]        <1>     mov  esi,apicerrmsg
-  1491 00000C9E E861000000          <1>     call irq_print_msg
-  1492 00000CA3 5E                  <1>     pop  esi
-  1493 00000CA4 CF                  <1>     iret
-  1494                              <1> 
-  1495                              <1> ; serves only to eoi the fixed ipi used for sleep wakeup
-  1496 00000CA5 90<rept>            <1> align 4
-  1497                              <1> wakeup :
-  1498 00000CA8 50                  <1>     push eax
-  1499 00000CA9 31C0                <1>     xor  eax,eax
-  1500 00000CAB A3B000E0FE          <1>     mov  [0xfee000b0],eax    ; lapic eoi
-  1501 00000CB0 58                  <1>     pop  eax
-  1502 00000CB1 CF                  <1>     iret
-  1503                              <1> 
-  1504                              <1> 
-  1505 00000CB2 90<rept>            <1> align 4
-  1506                              <1> ; %if ($ >= 0x8000) bomb
-  1507                              <1> sysent :
-  1508 00000CB4 3D00020000          <1>     cmp  eax,0x0200
-  1509 00000CB9 0F84D5020000        <1>     jz   syscall_klog
-  1510 00000CBF 3D00100000          <1>     cmp  eax,0x1000
-  1511 00000CC4 0F84DF020000        <1>     jz   syscall_ncpus
-  1512 00000CCA 3D00200000          <1>     cmp  eax,0x2000
-  1513 00000CCF 0F8439030000        <1>     jz   syscall_sleep
-  1514 00000CD5 3D00210000          <1>     cmp  eax,0x2100
-  1515 00000CDA 0F84CF020000        <1>     jz   syscall_new_thread
-  1516 00000CE0 3D00270000          <1>     cmp  eax,0x2700
-  1517 00000CE5 0F8458030000        <1>     jz   syscall_request_pmem_access
-  1518 00000CEB 3D00FE0000          <1>     cmp  eax,0xfe00
-  1519 00000CF0 0F84AD020000        <1>     jz   syscall_sipi_vector
-  1520 00000CF6 BE[BF070000]        <1>     mov  esi,int255msg
-  1521 00000CFB E804000000          <1>     call irq_print_msg
-  1522 00000D00 31C0                <1>     xor  eax,eax
-  1523 00000D02 48                  <1>     dec  eax
-  1524 00000D03 CF                  <1>     iret
-  1525                              <1> 
-  1526                              <1> 
-  1527                              <1> ; ---- IRQ support code ---- 
-  1528                              <1> 
-  1529                              <1> irq_print_msg :
-  1530 00000D04 B801000000          <1>     mov  eax,1
-  1531 00000D09 0FC105[E0070000]    <1>     xadd [irq_err_lno],eax
-  1532 00000D10 50                  <1>     push eax                ; remember line number
-  1533 00000D11 83E003              <1>     and  eax,0x3            ; only four lines
-  1534 00000D14 40                  <1>     inc  eax                ; start with line 1
-  1535 00000D15 BBA0000000          <1>     mov  ebx,160            ; vga line length
-  1536 00000D1A 0FAFC3              <1>     imul eax,ebx
-  1537 00000D1D 89C3                <1>     mov  ebx,eax
-  1538                              <1> 
-  1539 00000D1F A0[30030000]        <1>     mov  al,[enabled_lapic]
-  1540 00000D24 08C0                <1>     or   al,al
-  1541 00000D26 58                  <1>     pop  eax
-  1542 00000D27 742A                <1>     jz   skip_cpumsg
-  1543                              <1> 
-  1544 00000D29 56                  <1>     push esi
-  1545 00000D2A 50                  <1>     push eax
-  1546 00000D2B BE[9E050000]        <1>     mov  esi,cpumsg
-  1547 00000D30 E84CF7FFFF          <1>     call puts_vga
-  1548 00000D35 A12000E0FE          <1>     mov  eax,[0xfee00020]   ; print our apic id
-  1549 00000D3A C1E818              <1>     shr  eax,24
-  1550 00000D3D 83C030              <1>     add  eax,'0'
-  1551 00000D40 658803              <1>     mov  [gs:ebx],al
-  1552 00000D43 58                  <1>     pop  eax                ; recover line number
-  1553 00000D44 C0E802              <1>     shr  al,2               ; provide a rolling effect for
-  1554 00000D47 240F                <1>     and  al,0xf             ;     unending irq messages
-  1555 00000D49 0C08                <1>     or   al,0x8
-  1556 00000D4B 65884301            <1>     mov  [gs:ebx+1],al
-  1557 00000D4F 83C304              <1>     add  ebx,4
-  1558 00000D52 5E                  <1>     pop  esi
+  1441 00000BE7 56                  <1>     push esi
+  1442 00000BE8 BE[50070000]        <1>     mov  esi,int40msg
+  1443 00000BED E876010000          <1>     call irq_print_msg
+  1444 00000BF2 5E                  <1>     pop  esi
+  1445 00000BF3 E9C4010000          <1>     jmp  reboot_on_alt_key
+  1446                              <1> 
+  1447                              <1> align 4
+  1448                              <1> int_handler_hw09 :          ; acpi
+  1449 00000BF8 53                  <1>     push ebx
+  1450 00000BF9 66BB4E39            <1>     mov  bx,('9' << 8) + 39*2
+  1451 00000BFD E8B7FEFFFF          <1>     call display_irq
+  1452 00000C02 5B                  <1>     pop  ebx
+  1453                              <1> 
+  1454 00000C03 56                  <1>     push esi
+  1455 00000C04 BE[5A070000]        <1>     mov  esi,int41msg
+  1456 00000C09 E85A010000          <1>     call irq_print_msg
+  1457 00000C0E 5E                  <1>     pop  esi
+  1458 00000C0F E9A8010000          <1>     jmp  reboot_on_alt_key
+  1459                              <1> 
+  1460                              <1> align 4
+  1461                              <1> int_handler_hw10 :
+  1462 00000C14 53                  <1>     push ebx
+  1463 00000C15 66BB5061            <1>     mov  bx,('a' << 8) + 40*2
+  1464 00000C19 E89BFEFFFF          <1>     call display_irq
+  1465 00000C1E 5B                  <1>     pop  ebx
+  1466                              <1> 
+  1467 00000C1F 56                  <1>     push esi
+  1468 00000C20 BE[64070000]        <1>     mov  esi,int42msg
+  1469 00000C25 E83E010000          <1>     call irq_print_msg
+  1470 00000C2A 5E                  <1>     pop  esi
+  1471 00000C2B E98C010000          <1>     jmp  reboot_on_alt_key
+  1472                              <1> 
+  1473                              <1> align 4
+  1474                              <1> int_handler_hw11 :
+  1475 00000C30 53                  <1>     push ebx
+  1476 00000C31 66BB5262            <1>     mov  bx,('b' << 8) + 41*2
+  1477 00000C35 E87FFEFFFF          <1>     call display_irq
+  1478 00000C3A 5B                  <1>     pop  ebx
+  1479                              <1> 
+  1480 00000C3B 56                  <1>     push esi
+  1481 00000C3C BE[6E070000]        <1>     mov  esi,int43msg
+  1482 00000C41 E822010000          <1>     call irq_print_msg
+  1483 00000C46 5E                  <1>     pop  esi
+  1484 00000C47 E970010000          <1>     jmp  reboot_on_alt_key
+  1485                              <1> 
+  1486                              <1> align 4
+  1487                              <1> int_handler_hw12 :          ; mouse
+  1488 00000C4C 53                  <1>     push ebx
+  1489 00000C4D 66BB5463            <1>     mov  bx,('c' << 8) + 42*2
+  1490 00000C51 E863FEFFFF          <1>     call display_irq
+  1491 00000C56 5B                  <1>     pop  ebx
+  1492                              <1> 
+  1493 00000C57 56                  <1>     push esi
+  1494 00000C58 BE[78070000]        <1>     mov  esi,int44msg
+  1495 00000C5D E806010000          <1>     call irq_print_msg
+  1496 00000C62 5E                  <1>     pop  esi
+  1497 00000C63 E954010000          <1>     jmp  reboot_on_alt_key
+  1498                              <1> 
+  1499                              <1> align 4
+  1500                              <1> int_handler_hw13 :          ; co-processor
+  1501 00000C68 53                  <1>     push ebx
+  1502 00000C69 66BB5664            <1>     mov  bx,('d' << 8) + 43*2
+  1503 00000C6D E847FEFFFF          <1>     call display_irq
+  1504 00000C72 5B                  <1>     pop  ebx
+  1505                              <1> 
+  1506 00000C73 56                  <1>     push esi
+  1507 00000C74 BE[82070000]        <1>     mov  esi,int45msg
+  1508 00000C79 E8EA000000          <1>     call irq_print_msg
+  1509 00000C7E 5E                  <1>     pop  esi
+  1510 00000C7F E938010000          <1>     jmp  reboot_on_alt_key
+  1511                              <1> 
+  1512                              <1> align 4
+  1513                              <1> int_handler_hw14 :          ; ata disk controller primary
+  1514 00000C84 53                  <1>     push ebx
+  1515 00000C85 66BB5865            <1>     mov  bx,('e' << 8) + 44*2
+  1516 00000C89 E82BFEFFFF          <1>     call display_irq
+  1517 00000C8E 5B                  <1>     pop  ebx
+  1518                              <1> 
+  1519 00000C8F 56                  <1>     push esi
+  1520 00000C90 BE[8C070000]        <1>     mov  esi,int46msg
+  1521 00000C95 E8CE000000          <1>     call irq_print_msg
+  1522 00000C9A 5E                  <1>     pop  esi
+  1523 00000C9B E91C010000          <1>     jmp  reboot_on_alt_key
+  1524                              <1> 
+  1525                              <1> align 4
+  1526                              <1> int_handler_hw15 :          ; ata disk controller secondary
+  1527 00000CA0 53                  <1>     push ebx
+  1528 00000CA1 66BB5A66            <1>     mov  bx,('f' << 8) + 45*2
+  1529 00000CA5 E80FFEFFFF          <1>     call display_irq
+  1530 00000CAA 5B                  <1>     pop  ebx
+  1531                              <1> 
+  1532 00000CAB 56                  <1>     push esi
+  1533 00000CAC BE[96070000]        <1>     mov  esi,int47msg
+  1534 00000CB1 E8B2000000          <1>     call irq_print_msg
+  1535 00000CB6 5E                  <1>     pop  esi
+  1536 00000CB7 E900010000          <1>     jmp  reboot_on_alt_key
+  1537                              <1> 
+  1538                              <1> ; called via the double fault task
+  1539                              <1> align 4
+  1540                              <1> int_handler_tg_dblflt :
+  1541 00000CBC 56                  <1>     push esi
+  1542 00000CBD BE[26060000]        <1>     mov  esi,int08msg
+  1543 00000CC2 E8A1000000          <1>     call irq_print_msg
+  1544 00000CC7 5E                  <1>     pop  esi
+  1545 00000CC8 E9EF000000          <1>     jmp  reboot_on_alt_key
+  1546                              <1> 
+  1547                              <1> ; called via the invalid tss task
+  1548 00000CCD 90<rept>            <1> align 4
+  1549                              <1> int_handler_tg_invtss :
+  1550 00000CD0 56                  <1>     push esi
+  1551 00000CD1 BE[51060000]        <1>     mov  esi,int10msg
+  1552 00000CD6 E88D000000          <1>     call irq_print_msg
+  1553 00000CDB 5E                  <1>     pop  esi
+  1554                              <1>     ; FIXME need to go back to previous tss to get ec via that stack
+  1555 00000CDC 83C302              <1>     add  ebx,2
+  1556 00000CDF 58                  <1>     pop  eax                ; ec == invalid tss selector
+  1557 00000CE0 E8C3F7FFFF          <1>     call putx_vga
+  1558 00000CE5 E9D2000000          <1>     jmp  reboot_on_alt_key
   1559                              <1> 
-  1560                              <1> skip_cpumsg :
-  1561 00000D53 E929F7FFFF          <1>     jmp  puts_vga
-  1562                              <1> 
-  1563                              <1> 
-  1564                              <1> reboot_on_alt_key :
-  1565                              <1> reboot_on_alt_key_loop :
-  1566 00000D58 E460                <1>     in   al,0x60
-  1567 00000D5A 3C53                <1>     cmp  al,0x53            ; scan code for the DEL key
-  1568 00000D5C 75FA                <1>     jnz  reboot_on_alt_key_loop
-  1569                              <1> reboot :
-  1570 00000D5E 0F011D[8A0D0000]    <1>     lidt [reboot_idt]       ; restore boot idt (helps qemu ...)
-  1571 00000D65 EA[6C0D0000]2800    <1>     jmp  rmcssel:reboot_exit_pmode      ; thankyou hpa
-  1572                              <1> reboot_exit_pmode :
-  1573                              <1> bits 16
-  1574 00000D6C B83000              <1>     mov  ax,rmdssel
-  1575 00000D6F 8ED8                <1>     mov  ds,ax
-  1576 00000D71 8EC0                <1>     mov  es,ax
-  1577 00000D73 8ED0                <1>     mov  ss,ax
-  1578 00000D75 8EE0                <1>     mov  fs,ax
-  1579 00000D77 8EE8                <1>     mov  gs,ax
-  1580                              <1> 
-  1581 00000D79 0F20C0              <1>     mov  eax,cr0
-  1582 00000D7C 6625FEFFFF7F        <1>     and  eax,0x7ffffffe
-  1583 00000D82 0F22C0              <1>     mov  cr0,eax            ; disable pmode and paging
-  1584 00000D85 EA0000FFFF          <1>     jmp  0xffff:0           ; jump to the warm start vector and
-  1585                              <1>                             ; flush the I prefetch queue all at once
-  1586                              <1> 
-  1587                              <1> reboot_idt :
-  1588 00000D8A FFFF                <1>     dw 0xffff
-  1589 00000D8C 00000000            <1>     dd 0
-  1590                              <1> 
-  1591                              <1> 
-  1592                              <1> ; ---- IDT initialization table ---- 
-  1593                              <1> ;
-  1594                              <1> ; One dw (2 bytes per vector) is used which means that all
-  1595                              <1> ; int_handler entry points must reside below 0x10000!
-  1596                              <1> ;
-  1597                              <1> ; And since all int_handler routines are 4 byte aligned,
-  1598                              <1> ; the bottom two bits are available to indicate type.
-  1599                              <1> ; These bits index into the irq_types table below.
-  1600                              <1> 
-  1601                              <1> align 4
-  1602                              <1> 
-  1603                              <1> ; note: these are not gdt/ldt descriptors (see swdev3a 6.11 pg 228)
-  1604                              <1> 
-  1605 00000D90 8E                  <1> irq_types   db  0x8e            ; dpl=0 32bit interrupt gate (sets IF flag)
-  1606 00000D91 EE                  <1>             db  0xee            ; dpl=3 32bit app (ring3) interrupt gate
-  1607 00000D92 85                  <1>             db  0x85            ; dpl=0 32bit task gate
-  1608 00000D93 8F                  <1>             db  0x8f            ; dpl=0 32bit trap gate (does not set IF flag)
+  1560 00000CEA 90<rept>            <1> align 4
+  1561                              <1> int_handler_spurious :
+  1562 00000CEC 56                  <1>     push esi
+  1563 00000CED BE[A0070000]        <1>     mov  esi,spuriousmsg
+  1564 00000CF2 E871000000          <1>     call irq_print_msg
+  1565 00000CF7 5E                  <1>     pop  esi
+  1566 00000CF8 CF                  <1>     iret
+  1567                              <1> 
+  1568 00000CF9 90<rept>            <1> align 4
+  1569                              <1> int_handler_apicerr :
+  1570 00000CFC 56                  <1>     push esi
+  1571 00000CFD BE[AE070000]        <1>     mov  esi,apicerrmsg
+  1572 00000D02 E861000000          <1>     call irq_print_msg
+  1573 00000D07 5E                  <1>     pop  esi
+  1574 00000D08 CF                  <1>     iret
+  1575                              <1> 
+  1576                              <1> ; serves only to eoi the fixed ipi used for sleep wakeup
+  1577 00000D09 90<rept>            <1> align 4
+  1578                              <1> wakeup :
+  1579 00000D0C 50                  <1>     push eax
+  1580 00000D0D 31C0                <1>     xor  eax,eax
+  1581 00000D0F A3B000E0FE          <1>     mov  [0xfee000b0],eax    ; lapic eoi
+  1582 00000D14 58                  <1>     pop  eax
+  1583 00000D15 CF                  <1>     iret
+  1584                              <1> 
+  1585                              <1> 
+  1586 00000D16 90<rept>            <1> align 4
+  1587                              <1> ; %if ($ >= 0x8000) bomb
+  1588                              <1> sysent :
+  1589 00000D18 3D00020000          <1>     cmp  eax,0x0200
+  1590 00000D1D 0F84D5020000        <1>     jz   syscall_klog
+  1591 00000D23 3D00100000          <1>     cmp  eax,0x1000
+  1592 00000D28 0F84DF020000        <1>     jz   syscall_ncpus
+  1593 00000D2E 3D00200000          <1>     cmp  eax,0x2000
+  1594 00000D33 0F8439030000        <1>     jz   syscall_sleep
+  1595 00000D39 3D00210000          <1>     cmp  eax,0x2100
+  1596 00000D3E 0F84CF020000        <1>     jz   syscall_new_thread
+  1597 00000D44 3D00270000          <1>     cmp  eax,0x2700
+  1598 00000D49 0F8458030000        <1>     jz   syscall_request_pmem_access
+  1599 00000D4F 3D00FE0000          <1>     cmp  eax,0xfe00
+  1600 00000D54 0F84AD020000        <1>     jz   syscall_sipi_vector
+  1601 00000D5A BE[BF070000]        <1>     mov  esi,int255msg
+  1602 00000D5F E804000000          <1>     call irq_print_msg
+  1603 00000D64 31C0                <1>     xor  eax,eax
+  1604 00000D66 48                  <1>     dec  eax
+  1605 00000D67 CF                  <1>     iret
+  1606                              <1> 
+  1607                              <1> 
+  1608                              <1> ; ---- IRQ support code ---- 
   1609                              <1> 
-  1610                              <1> ; all handlers/selectors are 4 byte aligned - this gives us
-  1611                              <1> ; two bits to use to designate 1 of 4 types of idt descriptors ...
-  1612                              <1> 
-  1613                              <1> irqt_intr   equ 0
-  1614                              <1> irqt_app    equ 1
-  1615                              <1> irqt_task   equ 2
-  1616                              <1> irqt_trap   equ 3
-  1617                              <1> 
-  1618                              <1> irq_setup_table:
-  1619                              <1>     ; cpu defined
-  1620 00000D94 [9B08]              <1>     dw  int_handler_div0      + irqt_trap ; 0
-  1621 00000D96 [AF08]              <1>     dw  int_handler_debug     + irqt_trap ; 1
-  1622 00000D98 [C008]              <1>     dw  int_handler_nmi       + irqt_intr ; 2
-  1623 00000D9A [D108]              <1>     dw  int_handler_brkp      + irqt_app  ; 3
-  1624 00000D9C [E508]              <1>     dw  int_handler_ovrflw    + irqt_app  ; 4
-  1625 00000D9E [F908]              <1>     dw  int_handler_bound     + irqt_app  ; 5
-  1626 00000DA0 [0F09]              <1>     dw  int_handler_invop     + irqt_trap ; 6
-  1627 00000DA2 [1F09]              <1>     dw  int_handler_devna     + irqt_trap ; 7
-  1628 00000DA4 4200                <1>     dw  tasksel_f08           + irqt_task ; 8   double fault
-  1629 00000DA6 [2309]              <1>     dw  int_handler_cpsego    + irqt_trap ; 9
-  1630 00000DA8 4A00                <1>     dw  tasksel_f10           + irqt_task ; 10  invalid tss
-  1631 00000DAA [3309]              <1>     dw  int_handler_segnp     + irqt_trap ; 11
-  1632 00000DAC [4309]              <1>     dw  int_handler_stkflt    + irqt_trap ; 12
-  1633 00000DAE [6709]              <1>     dw  int_handler_gpf       + irqt_trap ; 13
-  1634 00000DB0 [480A]              <1>     dw  int_handler_pgflt     + irqt_intr ; 14
-  1635 00000DB2 0000                <1>     dw  0                                 ; 15  Intel reserved
-  1636 00000DB4 [730A]              <1>     dw  int_handler_fpuerr    + irqt_trap ; 16
-  1637 00000DB6 [830A]              <1>     dw  int_handler_algnchk   + irqt_trap ; 17
-  1638 00000DB8 [970A]              <1>     dw  int_handler_machchk   + irqt_trap ; 18
-  1639 00000DBA [AB0A]              <1>     dw  int_handler_simdfpe   + irqt_trap ; 19
-  1640 00000DBC 000000000000000000- <1>     dw  0,0,0,0,0,0,0,0,0,0,0,0
-  1641 00000DC5 000000000000000000- <1>
-  1642 00000DCE 000000000000        <1>
-  1643                              <1>     ; hw defined
-  1644                              <1> apic0_irqbase equ ($ - irq_setup_table)/2
-  1645 00000DD4 [BC0A]              <1>     dw  int_handler_timer     + irqt_intr ; 32  0x20
-  1646 00000DD6 [0C0B]              <1>     dw  int_handler_kbd       + irqt_intr ; 33
-  1647 00000DD8 [400B]              <1>     dw  int_handler_hw02      + irqt_intr ; 34
-  1648 00000DDA [540B]              <1>     dw  int_handler_hw03      + irqt_intr ; 35
-  1649 00000DDC [680B]              <1>     dw  int_handler_hw04      + irqt_intr ; 36
-  1650 00000DDE [7C0B]              <1>     dw  int_handler_hw05      + irqt_intr ; 37
-  1651 00000DE0 [900B]              <1>     dw  int_handler_hw06      + irqt_intr ; 38
-  1652 00000DE2 [A40B]              <1>     dw  int_handler_hw07      + irqt_intr ; 39
-  1653                              <1> apic1_irqbase equ ($ - irq_setup_table)/2
-  1654 00000DE4 [B80B]              <1>     dw  int_handler_hw08      + irqt_intr ; 40
-  1655 00000DE6 [CC0B]              <1>     dw  int_handler_hw09      + irqt_intr ; 41
-  1656 00000DE8 [E00B]              <1>     dw  int_handler_hw10      + irqt_intr ; 42
-  1657 00000DEA [F40B]              <1>     dw  int_handler_hw11      + irqt_intr ; 43
-  1658 00000DEC [080C]              <1>     dw  int_handler_hw12      + irqt_intr ; 44
-  1659 00000DEE [1C0C]              <1>     dw  int_handler_hw13      + irqt_intr ; 45
-  1660 00000DF0 [300C]              <1>     dw  int_handler_hw14      + irqt_intr ; 46
-  1661 00000DF2 [440C]              <1>     dw  int_handler_hw15      + irqt_intr ; 47  0x2f
-  1662                              <1>     ; undefined - hw can expand here
-  1663 00000DF4 000000000000000000- <1>     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0x30
-  1664 00000DFD 000000000000000000- <1>
-  1665 00000E06 000000000000000000- <1>
-  1666 00000E0F 0000000000          <1>
-  1667 00000E14 000000000000000000- <1>     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0x40
-  1668 00000E1D 000000000000000000- <1>
-  1669 00000E26 000000000000000000- <1>
-  1670 00000E2F 0000000000          <1>
-  1671 00000E34 000000000000000000- <1>     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0x50
-  1672 00000E3D 000000000000000000- <1>
-  1673 00000E46 000000000000000000- <1>
-  1674 00000E4F 0000000000          <1>
-  1675 00000E54 000000000000000000- <1>     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0x60
-  1676 00000E5D 000000000000000000- <1>
-  1677 00000E66 000000000000000000- <1>
-  1678 00000E6F 0000000000          <1>
-  1679 00000E74 000000000000000000- <1>     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0x70
-  1680 00000E7D 000000000000000000- <1>
-  1681 00000E86 000000000000000000- <1>
-  1682 00000E8F 0000000000          <1>
-  1683 00000E94 000000000000000000- <1>     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0x80
-  1684 00000E9D 000000000000000000- <1>
-  1685 00000EA6 000000000000000000- <1>
-  1686 00000EAF 0000000000          <1>
-  1687 00000EB4 000000000000000000- <1>     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0x90
-  1688 00000EBD 000000000000000000- <1>
-  1689 00000EC6 000000000000000000- <1>
-  1690 00000ECF 0000000000          <1>
-  1691 00000ED4 000000000000000000- <1>     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0xa0
-  1692 00000EDD 000000000000000000- <1>
-  1693 00000EE6 000000000000000000- <1>
-  1694 00000EEF 0000000000          <1>
-  1695                              <1>     ; set up cpu thread management tss gates
-  1696                              <1>     ; these map 1-to-1 to cpus
-  1697                              <1> first_thread_tss_gate equ ($ - irq_setup_table)/2
-  1698 00000EF4 5A00                <1>     dw  tasksel_u00           + irqt_task
-  1699 00000EF6 6A00                <1>     dw  tasksel_u01           + irqt_task
-  1700 00000EF8 7A00                <1>     dw  tasksel_u02           + irqt_task
-  1701 00000EFA 8A00                <1>     dw  tasksel_u03           + irqt_task
-  1702 00000EFC 9A00                <1>     dw  tasksel_u04           + irqt_task
-  1703 00000EFE AA00                <1>     dw  tasksel_u05           + irqt_task
-  1704 00000F00 BA00                <1>     dw  tasksel_u06           + irqt_task
-  1705 00000F02 CA00                <1>     dw  tasksel_u07           + irqt_task
-  1706                              <1> %ifdef FOO
-  1707                              <1>     dw  tasksel_u08           + irqt_task
-  1708                              <1>     dw  tasksel_u09           + irqt_task
-  1709                              <1>     dw  tasksel_u10           + irqt_task
-  1710                              <1>     dw  tasksel_u11           + irqt_task
-  1711                              <1>     dw  tasksel_u12           + irqt_task
-  1712                              <1>     dw  tasksel_u13           + irqt_task
-  1713                              <1>     dw  tasksel_u14           + irqt_task
-  1714                              <1>     dw  tasksel_u15           + irqt_task
-  1715                              <1> %endif
-  1716 00000F04 000000000000000000- <1>     dw                  0,0,0,0,0,0,0,0   ; 0xb0
-  1717 00000F0D 00000000000000      <1>
-  1718 00000F14 000000000000000000- <1>     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0xc0
-  1719 00000F1D 000000000000000000- <1>
-  1720 00000F26 000000000000000000- <1>
-  1721 00000F2F 0000000000          <1>
-  1722 00000F34 000000000000000000- <1>     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0xd0
-  1723 00000F3D 000000000000000000- <1>
-  1724 00000F46 000000000000000000- <1>
-  1725 00000F4F 0000000000          <1>
-  1726 00000F54 000000000000000000- <1>     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0     ; 0xe0
-  1727 00000F5D 000000000000000000- <1>
-  1728 00000F66 000000000000000000- <1>
-  1729 00000F6F 000000              <1>
-  1730                              <1> spurious_int equ ($ - irq_setup_table)/2
-  1731 00000F72 [880C]              <1>     dw  int_handler_spurious  + irqt_intr
-  1732                              <1> apicerr_int equ ($ - irq_setup_table)/2
-  1733 00000F74 [990C]              <1>     dw  int_handler_apicerr   + irqt_app
-  1734 00000F76 000000000000000000- <1>     dw    0,0,0,0,0,0,0,0,0,0,0,0,0       ; 0xf0
-  1735 00000F7F 000000000000000000- <1>
-  1736 00000F88 0000000000000000    <1>
-  1737                              <1>     ; sw defined - expand down if needed
-  1738                              <1> wakeup_int equ ($ - irq_setup_table)/2
-  1739 00000F90 [A90C]              <1>     dw  wakeup                + irqt_app
-  1740 00000F92 [B50C]              <1>     dw  sysent                + irqt_app  ; 256  0xff
-  1741                              <1> irq_setup_table_size equ ($ - irq_setup_table)/2
-  1742                              <1> 
-  1743                                  
-  1744                                  ; -------- system calls --------
-  1745                                  %include "ozsys.asm"
-  1746                              <1> ; OZ - A more utopian OS    x86-32 system calls
-  1747                              <1> ; ex: set expandtab softtabstop=4 shiftwidth=4 nowrap :
-  1748                              <1> ;
-  1749                              <1> ; Copyright (C) 2015  Duane Voth
-  1750                              <1> ;
-  1751                              <1> ;   This program is free software: you can redistribute it and/or modify
-  1752                              <1> ;   it under the terms of the GNU Affero General Public License as
-  1753                              <1> ;   published by the Free Software Foundation, either version 3 of the
-  1754                              <1> ;   License, or (at your option) any later version.
-  1755                              <1> ;
-  1756                              <1> ;   This program is distributed in the hope that it will be useful,
-  1757                              <1> ;   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  1758                              <1> ;   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  1759                              <1> ;   GNU Affero General Public License for more details.
-  1760                              <1> ;
-  1761                              <1> ;   You should have received a copy of the GNU Affero General Public License
-  1762                              <1> ;   along with this program. If not, see <http://www.gnu.org/licenses/agpl.html>
-  1763                              <1> ;
-  1764                              <1> ;
-  1765                              <1> ; OZ System Calls  (for ozapps)
-  1766                              <1> 
-  1767                              <1> bits 32
-  1768                              <1> 
-  1769                              <1> ;------------------------------------------------------------------
-  1770                              <1> ;   syscall_klog : place a message on the vga line reserved for klog  :D
-  1771                              <1> ;
-  1772                              <1> ;   entry:
-  1773                              <1> ;       esi = message address
-  1774                              <1> ;   exit:
-  1775                              <1> 
-  1776                              <1> syscall_klog :
-  1777 00000F94 53                  <1>     push ebx
-  1778 00000F95 BB20030000          <1>     mov  ebx,5 * 160        ; line 6
-  1779 00000F9A E8E2F4FFFF          <1>     call puts_vga
-  1780 00000F9F 5B                  <1>     pop  ebx
-  1781 00000FA0 31C0                <1>     xor  eax,eax
-  1782 00000FA2 CF                  <1>     iret
-  1783                              <1> 
-  1784                              <1> ;------------------------------------------------------------------
-  1785                              <1> ;   syscall_sipi_vector : get the entry vector for non-boot cpus
-  1786                              <1> ;
-  1787                              <1> ;   entry:
-  1788                              <1> ;   exit:
-  1789                              <1> ;       eax = N cpus
-  1790                              <1> 
-  1791                              <1> syscall_sipi_vector :
-  1792 00000FA3 B800700000          <1>     mov  eax,sipi_vector
-  1793 00000FA8 CF                  <1>     iret
-  1794                              <1> 
-  1795                              <1> ;------------------------------------------------------------------
-  1796                              <1> ;   syscall_ncpus : get how many cpu threads are running
-  1797                              <1> ;
-  1798                              <1> ;   entry:
-  1799                              <1> ;   exit:
-  1800                              <1> ;       eax = N cpus
-  1801                              <1> 
-  1802                              <1> syscall_ncpus :
-  1803 00000FA9 A1[14030000]        <1>     mov  eax,[ncpus]
-  1804 00000FAE CF                  <1>     iret
-  1805                              <1> 
-  1806                              <1> ;------------------------------------------------------------------
-  1807                              <1> ;   syscall_new_thread : ask for another cpu to execute code in
-  1808                              <1> ;                        the current app
-  1809                              <1> ;
-  1810                              <1> ;   This implementation is quite a bit of a hack - apps can basically
-  1811                              <1> ;   commendere any specific non-boot cpu they want ...
-  1812                              <1> ;
-  1813                              <1> ;   entry:
-  1814                              <1> ;       edx = function start address in the app
-  1815                              <1> ;       ecx = address of the top of the app's new thread stack
-  1816                              <1> ;       ebx = app's new thread index
-  1817                              <1> ;   exit:
-  1818                              <1> ;       eax = 0 success, -1 failure
-  1819                              <1> 
-  1820                              <1> syscall_new_thread :
-  1821 00000FAF 09DB                <1>     or   ebx,ebx
-  1822 00000FB1 7459                <1>     jz   new_thread_fail        ; don't get to ask for cpu 0
+  1610                              <1> irq_print_msg :
+  1611 00000D68 B801000000          <1>     mov  eax,1
+  1612 00000D6D 0FC105[E0070000]    <1>     xadd [irq_err_lno],eax
+  1613 00000D74 50                  <1>     push eax                ; remember line number
+  1614 00000D75 83E003              <1>     and  eax,0x3            ; only four lines
+  1615 00000D78 40                  <1>     inc  eax                ; start with line 1
+  1616 00000D79 BBA0000000          <1>     mov  ebx,160            ; vga line length
+  1617 00000D7E 0FAFC3              <1>     imul eax,ebx
+  1618 00000D81 89C3                <1>     mov  ebx,eax
+  1619                              <1> 
+  1620 00000D83 A0[30030000]        <1>     mov  al,[enabled_lapic]
+  1621 00000D88 08C0                <1>     or   al,al
+  1622 00000D8A 58                  <1>     pop  eax
+  1623 00000D8B 742A                <1>     jz   skip_cpumsg
+  1624                              <1> 
+  1625 00000D8D 56                  <1>     push esi
+  1626 00000D8E 50                  <1>     push eax
+  1627 00000D8F BE[9E050000]        <1>     mov  esi,cpumsg
+  1628 00000D94 E8E8F6FFFF          <1>     call puts_vga
+  1629 00000D99 A12000E0FE          <1>     mov  eax,[0xfee00020]   ; print our apic id
+  1630 00000D9E C1E818              <1>     shr  eax,24
+  1631 00000DA1 83C030              <1>     add  eax,'0'
+  1632 00000DA4 658803              <1>     mov  [gs:ebx],al
+  1633 00000DA7 58                  <1>     pop  eax                ; recover line number
+  1634 00000DA8 C0E802              <1>     shr  al,2               ; provide a rolling effect for
+  1635 00000DAB 240F                <1>     and  al,0xf             ;     unending irq messages
+  1636 00000DAD 0C08                <1>     or   al,0x8
+  1637 00000DAF 65884301            <1>     mov  [gs:ebx+1],al
+  1638 00000DB3 83C304              <1>     add  ebx,4
+  1639 00000DB6 5E                  <1>     pop  esi
+  1640                              <1> 
+  1641                              <1> skip_cpumsg :
+  1642 00000DB7 E9C5F6FFFF          <1>     jmp  puts_vga
+  1643                              <1> 
+  1644                              <1> 
+  1645                              <1> reboot_on_alt_key :
+  1646                              <1> reboot_on_alt_key_loop :
+  1647 00000DBC E460                <1>     in   al,0x60
+  1648 00000DBE 3C53                <1>     cmp  al,0x53            ; scan code for the DEL key
+  1649 00000DC0 75FA                <1>     jnz  reboot_on_alt_key_loop
+  1650                              <1> reboot :
+  1651 00000DC2 0F011D[EE0D0000]    <1>     lidt [reboot_idt]       ; restore boot idt (helps qemu ...)
+  1652 00000DC9 EA[D00D0000]2800    <1>     jmp  rmcssel:reboot_exit_pmode      ; thankyou hpa
+  1653                              <1> reboot_exit_pmode :
+  1654                              <1> bits 16
+  1655 00000DD0 B83000              <1>     mov  ax,rmdssel
+  1656 00000DD3 8ED8                <1>     mov  ds,ax
+  1657 00000DD5 8EC0                <1>     mov  es,ax
+  1658 00000DD7 8ED0                <1>     mov  ss,ax
+  1659 00000DD9 8EE0                <1>     mov  fs,ax
+  1660 00000DDB 8EE8                <1>     mov  gs,ax
+  1661                              <1> 
+  1662 00000DDD 0F20C0              <1>     mov  eax,cr0
+  1663 00000DE0 6625FEFFFF7F        <1>     and  eax,0x7ffffffe
+  1664 00000DE6 0F22C0              <1>     mov  cr0,eax            ; disable pmode and paging
+  1665 00000DE9 EA0000FFFF          <1>     jmp  0xffff:0           ; jump to the warm start vector and
+  1666                              <1>                             ; flush the I prefetch queue all at once
+  1667                              <1> 
+  1668                              <1> reboot_idt :
+  1669 00000DEE FFFF                <1>     dw 0xffff
+  1670 00000DF0 00000000            <1>     dd 0
+  1671                              <1> 
+  1672                              <1> 
+  1673                              <1> ; ---- IDT initialization table ---- 
+  1674                              <1> ;
+  1675                              <1> ; One dw (2 bytes per vector) is used which means that all
+  1676                              <1> ; int_handler entry points must reside below 0x10000!
+  1677                              <1> ;
+  1678                              <1> ; And since all int_handler routines are 4 byte aligned,
+  1679                              <1> ; the bottom two bits are available to indicate type.
+  1680                              <1> ; These bits index into the irq_types table below.
+  1681                              <1> 
+  1682                              <1> align 4
+  1683                              <1> 
+  1684                              <1> ; note: these are not gdt/ldt descriptors (see swdev3a 6.11 pg 228)
+  1685                              <1> 
+  1686 00000DF4 8E                  <1> irq_types   db  0x8e            ; dpl=0 32bit interrupt gate (sets IF flag)
+  1687 00000DF5 EE                  <1>             db  0xee            ; dpl=3 32bit app (ring3) interrupt gate
+  1688 00000DF6 85                  <1>             db  0x85            ; dpl=0 32bit task gate
+  1689 00000DF7 8F                  <1>             db  0x8f            ; dpl=0 32bit trap gate (does not set IF flag)
+  1690                              <1> 
+  1691                              <1> ; all handlers/selectors are 4 byte aligned - this gives us
+  1692                              <1> ; two bits to use to designate 1 of 4 types of idt descriptors ...
+  1693                              <1> 
+  1694                              <1> irqt_intr   equ 0
+  1695                              <1> irqt_app    equ 1
+  1696                              <1> irqt_task   equ 2
+  1697                              <1> irqt_trap   equ 3
+  1698                              <1> 
+  1699                              <1> irq_setup_table:
+  1700                              <1>     ; cpu defined
+  1701 00000DF8 [9B08]              <1>     dw  int_handler_div0      + irqt_trap ; 0
+  1702 00000DFA [AF08]              <1>     dw  int_handler_debug     + irqt_trap ; 1
+  1703 00000DFC [C008]              <1>     dw  int_handler_nmi       + irqt_intr ; 2
+  1704 00000DFE [D108]              <1>     dw  int_handler_brkp      + irqt_app  ; 3
+  1705 00000E00 [E508]              <1>     dw  int_handler_ovrflw    + irqt_app  ; 4
+  1706 00000E02 [F908]              <1>     dw  int_handler_bound     + irqt_app  ; 5
+  1707 00000E04 [0F09]              <1>     dw  int_handler_invop     + irqt_trap ; 6
+  1708 00000E06 [1F09]              <1>     dw  int_handler_devna     + irqt_trap ; 7
+  1709 00000E08 4200                <1>     dw  tasksel_f08           + irqt_task ; 8   double fault
+  1710 00000E0A [2309]              <1>     dw  int_handler_cpsego    + irqt_trap ; 9
+  1711 00000E0C 4A00                <1>     dw  tasksel_f10           + irqt_task ; 10  invalid tss
+  1712 00000E0E [3309]              <1>     dw  int_handler_segnp     + irqt_trap ; 11
+  1713 00000E10 [4309]              <1>     dw  int_handler_stkflt    + irqt_trap ; 12
+  1714 00000E12 [6709]              <1>     dw  int_handler_gpf       + irqt_trap ; 13
+  1715 00000E14 [480A]              <1>     dw  int_handler_pgflt     + irqt_intr ; 14
+  1716 00000E16 0000                <1>     dw  0                                 ; 15  Intel reserved
+  1717 00000E18 [730A]              <1>     dw  int_handler_fpuerr    + irqt_trap ; 16
+  1718 00000E1A [830A]              <1>     dw  int_handler_algnchk   + irqt_trap ; 17
+  1719 00000E1C [970A]              <1>     dw  int_handler_machchk   + irqt_trap ; 18
+  1720 00000E1E [AB0A]              <1>     dw  int_handler_simdfpe   + irqt_trap ; 19
+  1721 00000E20 000000000000000000- <1>     dw  0,0,0,0,0,0,0,0,0,0,0,0
+  1722 00000E29 000000000000000000- <1>
+  1723 00000E32 000000000000        <1>
+  1724                              <1>     ; hw defined
+  1725                              <1> apic0_irqbase equ ($ - irq_setup_table)/2
+  1726 00000E38 [DC0A]              <1>     dw  int_handler_timer     + irqt_intr ; 32  0x20
+  1727 00000E3A [140B]              <1>     dw  int_handler_kbd       + irqt_intr ; 33
+  1728 00000E3C [400B]              <1>     dw  int_handler_hw02      + irqt_intr ; 34
+  1729 00000E3E [5C0B]              <1>     dw  int_handler_hw03      + irqt_intr ; 35
+  1730 00000E40 [780B]              <1>     dw  int_handler_hw04      + irqt_intr ; 36
+  1731 00000E42 [940B]              <1>     dw  int_handler_hw05      + irqt_intr ; 37
+  1732 00000E44 [B00B]              <1>     dw  int_handler_hw06      + irqt_intr ; 38
+  1733 00000E46 [CC0B]              <1>     dw  int_handler_hw07      + irqt_intr ; 39
+  1734                              <1> apic1_irqbase equ ($ - irq_setup_table)/2
+  1735 00000E48 [DC0B]              <1>     dw  int_handler_hw08      + irqt_intr ; 40
+  1736 00000E4A [F80B]              <1>     dw  int_handler_hw09      + irqt_intr ; 41
+  1737 00000E4C [140C]              <1>     dw  int_handler_hw10      + irqt_intr ; 42
+  1738 00000E4E [300C]              <1>     dw  int_handler_hw11      + irqt_intr ; 43
+  1739 00000E50 [4C0C]              <1>     dw  int_handler_hw12      + irqt_intr ; 44
+  1740 00000E52 [680C]              <1>     dw  int_handler_hw13      + irqt_intr ; 45
+  1741 00000E54 [840C]              <1>     dw  int_handler_hw14      + irqt_intr ; 46
+  1742 00000E56 [A00C]              <1>     dw  int_handler_hw15      + irqt_intr ; 47  0x2f
+  1743                              <1>     ; undefined - hw can expand here
+  1744 00000E58 000000000000000000- <1>     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0x30
+  1745 00000E61 000000000000000000- <1>
+  1746 00000E6A 000000000000000000- <1>
+  1747 00000E73 0000000000          <1>
+  1748 00000E78 000000000000000000- <1>     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0x40
+  1749 00000E81 000000000000000000- <1>
+  1750 00000E8A 000000000000000000- <1>
+  1751 00000E93 0000000000          <1>
+  1752 00000E98 000000000000000000- <1>     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0x50
+  1753 00000EA1 000000000000000000- <1>
+  1754 00000EAA 000000000000000000- <1>
+  1755 00000EB3 0000000000          <1>
+  1756 00000EB8 000000000000000000- <1>     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0x60
+  1757 00000EC1 000000000000000000- <1>
+  1758 00000ECA 000000000000000000- <1>
+  1759 00000ED3 0000000000          <1>
+  1760 00000ED8 000000000000000000- <1>     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0x70
+  1761 00000EE1 000000000000000000- <1>
+  1762 00000EEA 000000000000000000- <1>
+  1763 00000EF3 0000000000          <1>
+  1764 00000EF8 000000000000000000- <1>     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0x80
+  1765 00000F01 000000000000000000- <1>
+  1766 00000F0A 000000000000000000- <1>
+  1767 00000F13 0000000000          <1>
+  1768 00000F18 000000000000000000- <1>     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0x90
+  1769 00000F21 000000000000000000- <1>
+  1770 00000F2A 000000000000000000- <1>
+  1771 00000F33 0000000000          <1>
+  1772 00000F38 000000000000000000- <1>     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0xa0
+  1773 00000F41 000000000000000000- <1>
+  1774 00000F4A 000000000000000000- <1>
+  1775 00000F53 0000000000          <1>
+  1776                              <1>     ; set up cpu thread management tss gates
+  1777                              <1>     ; these map 1-to-1 to cpus
+  1778                              <1> first_thread_tss_gate equ ($ - irq_setup_table)/2
+  1779 00000F58 5A00                <1>     dw  tasksel_u00           + irqt_task
+  1780 00000F5A 6A00                <1>     dw  tasksel_u01           + irqt_task
+  1781 00000F5C 7A00                <1>     dw  tasksel_u02           + irqt_task
+  1782 00000F5E 8A00                <1>     dw  tasksel_u03           + irqt_task
+  1783 00000F60 9A00                <1>     dw  tasksel_u04           + irqt_task
+  1784 00000F62 AA00                <1>     dw  tasksel_u05           + irqt_task
+  1785 00000F64 BA00                <1>     dw  tasksel_u06           + irqt_task
+  1786 00000F66 CA00                <1>     dw  tasksel_u07           + irqt_task
+  1787                              <1> %ifdef FOO
+  1788                              <1>     dw  tasksel_u08           + irqt_task
+  1789                              <1>     dw  tasksel_u09           + irqt_task
+  1790                              <1>     dw  tasksel_u10           + irqt_task
+  1791                              <1>     dw  tasksel_u11           + irqt_task
+  1792                              <1>     dw  tasksel_u12           + irqt_task
+  1793                              <1>     dw  tasksel_u13           + irqt_task
+  1794                              <1>     dw  tasksel_u14           + irqt_task
+  1795                              <1>     dw  tasksel_u15           + irqt_task
+  1796                              <1> %endif
+  1797 00000F68 000000000000000000- <1>     dw                  0,0,0,0,0,0,0,0   ; 0xb0
+  1798 00000F71 00000000000000      <1>
+  1799 00000F78 000000000000000000- <1>     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0xc0
+  1800 00000F81 000000000000000000- <1>
+  1801 00000F8A 000000000000000000- <1>
+  1802 00000F93 0000000000          <1>
+  1803 00000F98 000000000000000000- <1>     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0xd0
+  1804 00000FA1 000000000000000000- <1>
+  1805 00000FAA 000000000000000000- <1>
+  1806 00000FB3 0000000000          <1>
+  1807 00000FB8 000000000000000000- <1>     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0     ; 0xe0
+  1808 00000FC1 000000000000000000- <1>
+  1809 00000FCA 000000000000000000- <1>
+  1810 00000FD3 000000              <1>
+  1811                              <1> spurious_int equ ($ - irq_setup_table)/2
+  1812 00000FD6 [EC0C]              <1>     dw  int_handler_spurious  + irqt_intr
+  1813                              <1> apicerr_int equ ($ - irq_setup_table)/2
+  1814 00000FD8 [FD0C]              <1>     dw  int_handler_apicerr   + irqt_app
+  1815 00000FDA 000000000000000000- <1>     dw    0,0,0,0,0,0,0,0,0,0,0,0,0       ; 0xf0
+  1816 00000FE3 000000000000000000- <1>
+  1817 00000FEC 0000000000000000    <1>
+  1818                              <1>     ; sw defined - expand down if needed
+  1819                              <1> wakeup_int equ ($ - irq_setup_table)/2
+  1820 00000FF4 [0D0D]              <1>     dw  wakeup                + irqt_app
+  1821 00000FF6 [190D]              <1>     dw  sysent                + irqt_app  ; 256  0xff
+  1822                              <1> irq_setup_table_size equ ($ - irq_setup_table)/2
   1823                              <1> 
-  1824 00000FB3 31C0                <1>     xor  eax,eax
-  1825 00000FB5 A0[30030000]        <1>     mov  al,[enabled_lapic]     ; if the lapics are not enabled,
-  1826 00000FBA 08C0                <1>     or   al,al                  ; none of this is useful
-  1827 00000FBC 744E                <1>     jz   new_thread_fail
-  1828                              <1> 
-  1829                              <1>     ; setup the tss
-  1830                              <1>     ; slightly squirly - get the tss address from the task selector
-  1831                              <1>     ; but there could be a race here: ncpus is updated before
-  1832                              <1>     ; create_tss_pair is called, so the task selector could be zero!
-  1833                              <1> 
-  1834 00000FBE 89DF                <1>     mov  edi,ebx
-  1835 00000FC0 C1E704              <1>     shl  edi,4                  ; 8 byte selectors in pairs
-  1836 00000FC3 83C758              <1>     add  edi,tasksel_u00
-  1837 00000FC6 8BB7[02000000]      <1>     mov  esi,[gdt+edi+2]
-  1838 00000FCC 81E6FFFFFF00        <1>     and  esi,0xffffff
-  1839 00000FD2 31C0                <1>     xor  eax,eax
-  1840 00000FD4 8A87[07000000]      <1>     mov  al,[gdt+edi+7]
-  1841 00000FDA C1E018              <1>     shl  eax,24
-  1842 00000FDD 09C6                <1>     or   esi,eax
-  1843 00000FDF 742B                <1>     jz   new_thread_fail        ; cpu isn't yet ready ...
-  1844                              <1> 
-  1845                              <1>     ; really should check the previous task link to see if this
-  1846                              <1>     ; cpu is busy ...
+  1824                                  
+  1825                                  ; -------- system calls --------
+  1826                                  %include "ozsys.asm"
+  1827                              <1> ; OZ - A more utopian OS    x86-32 system calls
+  1828                              <1> ; ex: set expandtab softtabstop=4 shiftwidth=4 nowrap :
+  1829                              <1> ;
+  1830                              <1> ; Copyright (C) 2015  Duane Voth
+  1831                              <1> ;
+  1832                              <1> ;   This program is free software: you can redistribute it and/or modify
+  1833                              <1> ;   it under the terms of the GNU Affero General Public License as
+  1834                              <1> ;   published by the Free Software Foundation, either version 3 of the
+  1835                              <1> ;   License, or (at your option) any later version.
+  1836                              <1> ;
+  1837                              <1> ;   This program is distributed in the hope that it will be useful,
+  1838                              <1> ;   but WITHOUT ANY WARRANTY; without even the implied warranty of
+  1839                              <1> ;   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  1840                              <1> ;   GNU Affero General Public License for more details.
+  1841                              <1> ;
+  1842                              <1> ;   You should have received a copy of the GNU Affero General Public License
+  1843                              <1> ;   along with this program. If not, see <http://www.gnu.org/licenses/agpl.html>
+  1844                              <1> ;
+  1845                              <1> ;
+  1846                              <1> ; OZ System Calls  (for ozapps)
   1847                              <1> 
-  1848 00000FE1 894E38              <1>     mov  [esi+(tss0_esp-tss0)],ecx  ; set the app's stack
-  1849 00000FE4 895620              <1>     mov  [esi+(tss0_eip-tss0)],edx  ; set the ip to the entry point
-  1850                              <1> 
-  1851                              <1>     ; lookup the requested cpu's int/taskgate gdt selector
-  1852                              <1> 
-  1853 00000FE7 89DF                <1>     mov  edi,ebx
-  1854 00000FE9 81C7B0000000        <1>     add  edi,first_thread_tss_gate  ; convert ebx to int/taskgate number
-  1855                              <1> 
-  1856                              <1>     ; ipi a cpu.  no fancy affinity scheduling yet,
-  1857                              <1>     ; just let the app ask for a specific cpu to do the work
-  1858                              <1> 
-  1859 00000FEF B800000001          <1>     mov  eax,0x01000000
-  1860 00000FF4 89D9                <1>     mov  ecx,ebx                    ; recover requested cpu number
-  1861 00000FF6 D3E0                <1>     shl  eax,cl                     ; form the icr destination field
-  1862                              <1> 
-  1863                              <1>     ; poke the cpu that matches our thread index - we only get 8 :/
+  1848                              <1> bits 32
+  1849                              <1> 
+  1850                              <1> ;------------------------------------------------------------------
+  1851                              <1> ;   syscall_klog : place a message on the vga line reserved for klog  :D
+  1852                              <1> ;
+  1853                              <1> ;   entry:
+  1854                              <1> ;       esi = message address
+  1855                              <1> ;   exit:
+  1856                              <1> 
+  1857                              <1> syscall_klog :
+  1858 00000FF8 53                  <1>     push ebx
+  1859 00000FF9 BB20030000          <1>     mov  ebx,5 * 160        ; line 6
+  1860 00000FFE E87EF4FFFF          <1>     call puts_vga
+  1861 00001003 5B                  <1>     pop  ebx
+  1862 00001004 31C0                <1>     xor  eax,eax
+  1863 00001006 CF                  <1>     iret
   1864                              <1> 
-  1865 00000FF8 A31003E0FE          <1>     mov  dword [0xfee00310],eax
-  1866 00000FFD B800480000          <1>     mov  eax,0x4800                 ; no shorthand, fixed, logical, edge
-  1867 00001002 09F8                <1>     or   eax,edi                    ; make int/taskgate number the vector
-  1868 00001004 A30003E0FE          <1>     mov  dword [0xfee00300],eax
-  1869                              <1> 
-  1870 00001009 31C0                <1>     xor  eax,eax
-  1871 0000100B CF                  <1>     iret
-  1872                              <1> 
-  1873                              <1> new_thread_fail :
-  1874 0000100C 48                  <1>     dec  eax                    ; -1
-  1875 0000100D C3                  <1>     ret
-  1876                              <1> 
-  1877                              <1> ;------------------------------------------------------------------
-  1878                              <1> ;   syscall_sleep : wait for N timer interrupts
-  1879                              <1> ;
-  1880                              <1> ;   entry:
-  1881                              <1> ;       edx = N ticks
-  1882                              <1> ;   exit:
-  1883                              <1> 
-  1884                              <1> syscall_sleep :
-  1885 0000100E A0[30030000]        <1>     mov  al,[enabled_lapic]
-  1886 00001013 08C0                <1>     or   al,al
-  1887 00001015 7415                <1>     jz   sleep_loop
-  1888                              <1> 
-  1889 00001017 A12000E0FE          <1>     mov  eax,[0xfee00020]
-  1890 0000101C C1E818              <1>     shr  eax,24
-  1891 0000101F 09C0                <1>     or   eax,eax
-  1892 00001021 7409                <1>     jz   sleep_loop         ; the boot cpu services the timer int
-  1893 00001023 88C1                <1>     mov  cl,al              ; so don't add it to the sleeper list
-  1894 00001025 B801000000          <1>     mov  eax,1
-  1895 0000102A D3E0                <1>     shl  eax,cl
-  1896                              <1> 
-  1897                              <1> sleep_loop :
-  1898 0000102C F00905[1C030000]    <1>     lock or [sleepers],eax  ; announce we are sleeping
-  1899 00001033 FB                  <1>     sti
-  1900 00001034 F4                  <1>     hlt                     ; wait for an int to wake us up
-  1901 00001035 4A                  <1>     dec  edx                ; decrement the tick count
-  1902 00001036 75F4                <1>     jnz  sleep_loop
-  1903                              <1> 
-  1904 00001038 83F0FF              <1>     xor  eax,-1
-  1905 0000103B F02105[1C030000]    <1>     lock and [sleepers],eax ; renounce sleepiness
-  1906 00001042 CF                  <1>     iret
-  1907                              <1> 
-  1908                              <1> ;------------------------------------------------------------------
-  1909                              <1> ;   syscall_request_pmem_access : ask for access to a physical
-  1910                              <1> ;            memory address
-  1911                              <1> ;
-  1912                              <1> ;   entry:
-  1913                              <1> ;       edx = phys memory address
-  1914                              <1> ;
-  1915                              <1> ;   exit:
-  1916                              <1> ;       (need to return a logical address in eax)  For now just
-  1917                              <1> ;       direct maps the physical address into logical addr space.
-  1918                              <1> 
-  1919                              <1> syscall_request_pmem_access :
-  1920 00001043 E801000000          <1>     call map_pmem
-  1921 00001048 CF                  <1>     iret
-  1922                              <1> 
-  1923                              <1> ;------------------------------------------------------------------
-  1924                              <1> ;   map_pmem - add entries to the current page directory/table
-  1925                              <1> ;              to direct map the requested physical memory address
-  1926                              <1> ;              (logical identical to physical for now)
-  1927                              <1> ;
-  1928                              <1> ;   entry:
-  1929                              <1> ;       edx = phys memory address
-  1930                              <1> ;
-  1931                              <1> ;   returns:
-  1932                              <1> ;       (need to return a logical address in eax)  For now just
-  1933                              <1> ;       direct maps the physical address into logical addr space.
-  1934                              <1> ;       eax =  0 success
-  1935                              <1> ;       eax = -1 fail
+  1865                              <1> ;------------------------------------------------------------------
+  1866                              <1> ;   syscall_sipi_vector : get the entry vector for non-boot cpus
+  1867                              <1> ;
+  1868                              <1> ;   entry:
+  1869                              <1> ;   exit:
+  1870                              <1> ;       eax = N cpus
+  1871                              <1> 
+  1872                              <1> syscall_sipi_vector :
+  1873 00001007 B800700000          <1>     mov  eax,sipi_vector
+  1874 0000100C CF                  <1>     iret
+  1875                              <1> 
+  1876                              <1> ;------------------------------------------------------------------
+  1877                              <1> ;   syscall_ncpus : get how many cpu threads are running
+  1878                              <1> ;
+  1879                              <1> ;   entry:
+  1880                              <1> ;   exit:
+  1881                              <1> ;       eax = N cpus
+  1882                              <1> 
+  1883                              <1> syscall_ncpus :
+  1884 0000100D A1[14030000]        <1>     mov  eax,[ncpus]
+  1885 00001012 CF                  <1>     iret
+  1886                              <1> 
+  1887                              <1> ;------------------------------------------------------------------
+  1888                              <1> ;   syscall_new_thread : ask for another cpu to execute code in
+  1889                              <1> ;                        the current app
+  1890                              <1> ;
+  1891                              <1> ;   This implementation is quite a bit of a hack - apps can basically
+  1892                              <1> ;   commendere any specific non-boot cpu they want ...
+  1893                              <1> ;
+  1894                              <1> ;   entry:
+  1895                              <1> ;       edx = function start address in the app
+  1896                              <1> ;       ecx = address of the top of the app's new thread stack
+  1897                              <1> ;       ebx = app's new thread index
+  1898                              <1> ;   exit:
+  1899                              <1> ;       eax = 0 success, -1 failure
+  1900                              <1> 
+  1901                              <1> syscall_new_thread :
+  1902 00001013 09DB                <1>     or   ebx,ebx
+  1903 00001015 7459                <1>     jz   new_thread_fail        ; don't get to ask for cpu 0
+  1904                              <1> 
+  1905 00001017 31C0                <1>     xor  eax,eax
+  1906 00001019 A0[30030000]        <1>     mov  al,[enabled_lapic]     ; if the lapics are not enabled,
+  1907 0000101E 08C0                <1>     or   al,al                  ; none of this is useful
+  1908 00001020 744E                <1>     jz   new_thread_fail
+  1909                              <1> 
+  1910                              <1>     ; setup the tss
+  1911                              <1>     ; slightly squirly - get the tss address from the task selector
+  1912                              <1>     ; but there could be a race here: ncpus is updated before
+  1913                              <1>     ; create_tss_pair is called, so the task selector could be zero!
+  1914                              <1> 
+  1915 00001022 89DF                <1>     mov  edi,ebx
+  1916 00001024 C1E704              <1>     shl  edi,4                  ; 8 byte selectors in pairs
+  1917 00001027 83C758              <1>     add  edi,tasksel_u00
+  1918 0000102A 8BB7[02000000]      <1>     mov  esi,[gdt+edi+2]
+  1919 00001030 81E6FFFFFF00        <1>     and  esi,0xffffff
+  1920 00001036 31C0                <1>     xor  eax,eax
+  1921 00001038 8A87[07000000]      <1>     mov  al,[gdt+edi+7]
+  1922 0000103E C1E018              <1>     shl  eax,24
+  1923 00001041 09C6                <1>     or   esi,eax
+  1924 00001043 742B                <1>     jz   new_thread_fail        ; cpu isn't yet ready ...
+  1925                              <1> 
+  1926                              <1>     ; really should check the previous task link to see if this
+  1927                              <1>     ; cpu is busy ...
+  1928                              <1> 
+  1929 00001045 894E38              <1>     mov  [esi+(tss0_esp-tss0)],ecx  ; set the app's stack
+  1930 00001048 895620              <1>     mov  [esi+(tss0_eip-tss0)],edx  ; set the ip to the entry point
+  1931                              <1> 
+  1932                              <1>     ; lookup the requested cpu's int/taskgate gdt selector
+  1933                              <1> 
+  1934 0000104B 89DF                <1>     mov  edi,ebx
+  1935 0000104D 81C7B0000000        <1>     add  edi,first_thread_tss_gate  ; convert ebx to int/taskgate number
   1936                              <1> 
-  1937                              <1> map_pmem :
-  1938 00001049 53                  <1>     push ebx
-  1939 0000104A 57                  <1>     push edi
-  1940                              <1> 
-  1941 0000104B 0F013A              <1>     invlpg [edx]
-  1942 0000104E 52                  <1>     push edx
-  1943 0000104F 0F20DB              <1>     mov  ebx,cr3
-  1944 00001052 81E300F0FFFF        <1>     and  ebx,0xfffff000
-  1945 00001058 89D7                <1>     mov  edi,edx
-  1946 0000105A 81E70000C0FF        <1>     and  edi,0xffc00000
-  1947 00001060 C1EF14              <1>     shr  edi,(22 - 2)           ; calc page directory index
-  1948 00001063 81E200F03F00        <1>     and  edx,0x003ff000
-  1949 00001069 C1EA0A              <1>     shr  edx,(12 - 2)           ; calc page table index
+  1937                              <1>     ; ipi a cpu.  no fancy affinity scheduling yet,
+  1938                              <1>     ; just let the app ask for a specific cpu to do the work
+  1939                              <1> 
+  1940 00001053 B800000001          <1>     mov  eax,0x01000000
+  1941 00001058 89D9                <1>     mov  ecx,ebx                    ; recover requested cpu number
+  1942 0000105A D3E0                <1>     shl  eax,cl                     ; form the icr destination field
+  1943                              <1> 
+  1944                              <1>     ; poke the cpu that matches our thread index - we only get 8 :/
+  1945                              <1> 
+  1946 0000105C A31003E0FE          <1>     mov  dword [0xfee00310],eax
+  1947 00001061 B800480000          <1>     mov  eax,0x4800                 ; no shorthand, fixed, logical, edge
+  1948 00001066 09F8                <1>     or   eax,edi                    ; make int/taskgate number the vector
+  1949 00001068 A30003E0FE          <1>     mov  dword [0xfee00300],eax
   1950                              <1> 
-  1951 0000106C 8B043B              <1>     mov  eax,[ebx+edi]
-  1952 0000106F 09C0                <1>     or   eax,eax                ; is there a page table here?
-  1953 00001071 750F                <1>     jnz  map_pmem_have_pgtbl
-  1954 00001073 E85BF4FFFF          <1>     call mem_alloc_kernel_page
-  1955 00001078 09C0                <1>     or   eax,eax
-  1956 0000107A 741F                <1>     jz   map_pmem_fail
-  1957 0000107C C1E00C              <1>     shl  eax,12                 ; convert pgno to pgtbl entry
-  1958 0000107F 89043B              <1>     mov  [ebx+edi],eax          ; update page table
-  1959                              <1> 
-  1960                              <1> map_pmem_have_pgtbl :
-  1961                              <1>     ; for now, no security check, just direct map the address
-  1962                              <1>     ; and mark the pages and the page table r/w by all
-  1963 00001082 830C3B07            <1>     or   dword [ebx+edi],7      ; user, r/w, present
+  1951 0000106D 31C0                <1>     xor  eax,eax
+  1952 0000106F CF                  <1>     iret
+  1953                              <1> 
+  1954                              <1> new_thread_fail :
+  1955 00001070 48                  <1>     dec  eax                    ; -1
+  1956 00001071 C3                  <1>     ret
+  1957                              <1> 
+  1958                              <1> ;------------------------------------------------------------------
+  1959                              <1> ;   syscall_sleep : wait for N timer interrupts
+  1960                              <1> ;
+  1961                              <1> ;   entry:
+  1962                              <1> ;       edx = N ticks
+  1963                              <1> ;   exit:
   1964                              <1> 
-  1965 00001086 8B1C3B              <1>     mov  ebx,[ebx+edi]
-  1966 00001089 81E300F0FFFF        <1>     and  ebx,0xfffff000
-  1967 0000108F 58                  <1>     pop  eax                    ; recover requested phys mem addr
-  1968                              <1>     ; FIXME yup, big security hole if called by ring 0! And it is ...
-  1969 00001090 83C807              <1>     or   eax,7                  ; user, r/w, present
-  1970 00001093 890413              <1>     mov  [ebx+edx],eax          ; update page directory
-  1971 00001096 31C0                <1>     xor  eax,eax                ; 0
-  1972                              <1> map_pmem_exit :
-  1973 00001098 5F                  <1>     pop  edi
-  1974 00001099 5B                  <1>     pop  ebx
-  1975 0000109A C3                  <1>     ret
-  1976                              <1> 
-  1977                              <1> map_pmem_fail :
-  1978 0000109B 48                  <1>     dec  eax                    ; -1
-  1979 0000109C EBFA                <1>     jmp  map_pmem_exit
-  1980                              <1> 
-  1981                                  
-  1982 0000109E 00<rept>                align 16, db 0
-  1983                                  kernel_text_size equ ($-textstart)
-  1984                                  
-  1985                                  ; ---------------------------------------------------------------------------
-  1986                                  section .data
-  1987                                  datastart :
-  1988                                  
-  1989                                  ; -------- descriptors --------------
-  1990                                  ; Intel SW dev manual 3a, 3.4.5, pg 103
-  1991                                  ;
-  1992                                  ; In my opinion, macros for descriptor entries
-  1993                                  ; don't make the code that much more readable.
-  1994                                  
-  1995                                  descriptor_size equ 8
-  1996                                  
-  1997                                  gdt :
-  1998                                  nullsel equ $-gdt           ; nullsel = 0h
-  1999 00000000 0000000000000000            dd 0,0                  ; first descriptor per convention is 0
-  2000                                  
-  2001                                  codesel equ $-gdt           ; codesel = 8h  4Gb flat over all logical mem
-  2002 00000008 FFFF                        dw 0xffff               ; limit 0-15
-  2003 0000000A 0000                        dw 0x0000               ; base  0-15
-  2004 0000000C 00                          db 0x00                 ; base 16-23
-  2005 0000000D 9A                          db 0x9a                 ; present, dpl=0, code e/r
-  2006 0000000E CF                          db 0xcf                 ; 4k granular, 32bit/8bit, limit 16-19
-  2007 0000000F 00                          db 0x00                 ; base 24-31
-  2008                                  
-  2009                                  datasel equ $-gdt           ; datasel = 10h  4Gb flat over all logical mem
-  2010 00000010 FFFF                        dw 0xffff               ; limit 0-15
-  2011 00000012 0000                        dw 0x0000               ; base  0-15
-  2012 00000014 00                          db 0x00                 ; base 16-23
-  2013 00000015 92                          db 0x92                 ; present, dpl=0, data r/w
-  2014 00000016 CF                          db 0xcf                 ; 4k granular, 32bit/8bit, limit 16-19
-  2015 00000017 00                          db 0x00                 ; base 24-31
-  2016                                  
-  2017                                  stacksel equ $-gdt          ; stacksel = 18h  small limited stack
-  2018 00000018 FF1F                        dw kstack_size-1        ; limit
-  2019 0000001A 0010                        dw kstack_loc           ; base
-  2020 0000001C 00                          db 0
-  2021 0000001D 92                          db 0x92                 ; present, dpl=0, data, r/w
-  2022 0000001E 40                          db 0x40                 ; byte granular, 32bit/8bit
-  2023 0000001F 00                          db 0
-  2024                                  
-  2025                                  videosel equ $-gdt          ; videosel = 20h
-  2026 00000020 9F0F                        dw 3999                 ; limit 80*25*2-1
-  2027 00000022 0080                        dw 0x8000               ; base 0xb8000
-  2028 00000024 0B                          db 0x0b
-  2029 00000025 92                          db 0x92                 ; present, dpl=0, data, r/w
-  2030 00000026 40                          db 0x40                 ; byte granular, 32bit/8bit
-  2031 00000027 00                          db 0
-  2032                                  
-  2033                                  rmcssel equ $-gdt           ; real mode CS selector = 28h
-  2034 00000028 FFFF                        dw 0xffff               ; limit 0-15
-  2035 0000002A 0000                        dw 0x0000               ; base  0-15
-  2036 0000002C 00                          db 0x00                 ; base 16-23
-  2037 0000002D 9A                          db 0x9a                 ; present, dpl=0, code e/r
-  2038 0000002E 0F                          db 0x0f                 ; byte granular, 16bit, limit 16-19
-  2039 0000002F 00                          db 0x00                 ; base 24-31
-  2040                                  
-  2041                                  rmdssel equ $-gdt           ; real mode DS selector = 30h
-  2042 00000030 FFFF                        dw 0xffff               ; limit 0-15
-  2043 00000032 0000                        dw 0x0000               ; base  0-15
-  2044 00000034 00                          db 0x00                 ; base 16-23
-  2045 00000035 92                          db 0x92                 ; present, dpl=0, data r/w
-  2046 00000036 0F                          db 0x0f                 ; byte granular, 16bit, limit 16-19
-  2047 00000037 00                          db 0x00                 ; base 24-31
-  2048                                  
-  2049                                  ldtsel1 equ $-gdt
-  2050 00000038 1800                        dw ldt1_len             ; length of the ldt
-  2051 0000003A [5001]                      dw ldt1                 ; address of the ldt
-  2052 0000003C 00                          db 0
-  2053 0000003D 82                          db 0x82                 ; present, dpl=0, ldt
-  2054 0000003E 40                          db 0x40                 ; byte granular, 32bit/8bit
-  2055 0000003F 00                          db 0
-  2056                                  
-  2057                                  tasksel_f08 equ $-gdt       ; the double fault task selector
-  2058 00000040 6800                        dw tss_len              ; tss length
-  2059 00000042 [6801]                      dw tss_f08              ; tss physical address
-  2060 00000044 00                          db 0
-  2061 00000045 89                          db 0x89                 ; present, dpl=0, tss32
-  2062 00000046 40                          db 0x40                 ; byte granular, 32bit/8bit
-  2063 00000047 00                          db 0
-  2064                                  
-  2065                                  tasksel_f10 equ $-gdt       ; the invalid tss task selector
-  2066 00000048 6800                        dw tss_len              ; tss length
-  2067 0000004A [D001]                      dw tss_f10              ; tss physical address
-  2068 0000004C 00                          db 0
-  2069 0000004D 89                          db 0x89                 ; present, dpl=0, tss32
-  2070 0000004E 40                          db 0x40                 ; byte granular, 32bit/8bit
-  2071 0000004F 00                          db 0
-  2072                                  
-  2073                                  ; there is one kernel thread tss (ring 0) and one user thread tss (ring 1)
-  2074                                  ; per cpu.  memory for tss structs for the non-boot cpus are allocated as
-  2075                                  ; each non-boot cpu comes online (see create_tss_pair).  tasksel_uXX tss
-  2076                                  ; gates are installed in the idt (starting at first_thread_tss_gate),
-  2077                                  ; they also map 1-to-1 with cpus.  (the thread is launched via an lapic
-  2078                                  ; vectored interrupt that jumps immediately into user space - and to call a
-  2079                                  ; task gate from an interrupt requires an existing ring 0 tss to be active)
-  2080                                  ; tasksel_uXX tsses are initialized in new_thread.
+  1965                              <1> syscall_sleep :
+  1966 00001072 A0[30030000]        <1>     mov  al,[enabled_lapic]
+  1967 00001077 08C0                <1>     or   al,al
+  1968 00001079 7415                <1>     jz   sleep_loop
+  1969                              <1> 
+  1970 0000107B A12000E0FE          <1>     mov  eax,[0xfee00020]
+  1971 00001080 C1E818              <1>     shr  eax,24
+  1972 00001083 09C0                <1>     or   eax,eax
+  1973 00001085 7409                <1>     jz   sleep_loop         ; the boot cpu services the timer int
+  1974 00001087 88C1                <1>     mov  cl,al              ; so don't add it to the sleeper list
+  1975 00001089 B801000000          <1>     mov  eax,1
+  1976 0000108E D3E0                <1>     shl  eax,cl
+  1977                              <1> 
+  1978                              <1> sleep_loop :
+  1979 00001090 F00905[1C030000]    <1>     lock or [sleepers],eax  ; announce we are sleeping
+  1980 00001097 FB                  <1>     sti
+  1981 00001098 F4                  <1>     hlt                     ; wait for an int to wake us up
+  1982 00001099 4A                  <1>     dec  edx                ; decrement the tick count
+  1983 0000109A 75F4                <1>     jnz  sleep_loop
+  1984                              <1> 
+  1985 0000109C 83F0FF              <1>     xor  eax,-1
+  1986 0000109F F02105[1C030000]    <1>     lock and [sleepers],eax ; renounce sleepiness
+  1987 000010A6 CF                  <1>     iret
+  1988                              <1> 
+  1989                              <1> ;------------------------------------------------------------------
+  1990                              <1> ;   syscall_request_pmem_access : ask for access to a physical
+  1991                              <1> ;            memory address
+  1992                              <1> ;
+  1993                              <1> ;   entry:
+  1994                              <1> ;       edx = phys memory address
+  1995                              <1> ;
+  1996                              <1> ;   exit:
+  1997                              <1> ;       (need to return a logical address in eax)  For now just
+  1998                              <1> ;       direct maps the physical address into logical addr space.
+  1999                              <1> 
+  2000                              <1> syscall_request_pmem_access :
+  2001 000010A7 E801000000          <1>     call map_pmem
+  2002 000010AC CF                  <1>     iret
+  2003                              <1> 
+  2004                              <1> ;------------------------------------------------------------------
+  2005                              <1> ;   map_pmem - add entries to the current page directory/table
+  2006                              <1> ;              to direct map the requested physical memory address
+  2007                              <1> ;              (logical identical to physical for now)
+  2008                              <1> ;
+  2009                              <1> ;   entry:
+  2010                              <1> ;       edx = phys memory address
+  2011                              <1> ;
+  2012                              <1> ;   returns:
+  2013                              <1> ;       (need to return a logical address in eax)  For now just
+  2014                              <1> ;       direct maps the physical address into logical addr space.
+  2015                              <1> ;       eax =  0 success
+  2016                              <1> ;       eax = -1 fail
+  2017                              <1> 
+  2018                              <1> map_pmem :
+  2019 000010AD 53                  <1>     push ebx
+  2020 000010AE 57                  <1>     push edi
+  2021                              <1> 
+  2022 000010AF 0F013A              <1>     invlpg [edx]
+  2023 000010B2 52                  <1>     push edx
+  2024 000010B3 0F20DB              <1>     mov  ebx,cr3
+  2025 000010B6 81E300F0FFFF        <1>     and  ebx,0xfffff000
+  2026 000010BC 89D7                <1>     mov  edi,edx
+  2027 000010BE 81E70000C0FF        <1>     and  edi,0xffc00000
+  2028 000010C4 C1EF14              <1>     shr  edi,(22 - 2)           ; calc page directory index
+  2029 000010C7 81E200F03F00        <1>     and  edx,0x003ff000
+  2030 000010CD C1EA0A              <1>     shr  edx,(12 - 2)           ; calc page table index
+  2031                              <1> 
+  2032 000010D0 8B043B              <1>     mov  eax,[ebx+edi]
+  2033 000010D3 09C0                <1>     or   eax,eax                ; is there a page table here?
+  2034 000010D5 750F                <1>     jnz  map_pmem_have_pgtbl
+  2035 000010D7 E8F7F3FFFF          <1>     call mem_alloc_kernel_page
+  2036 000010DC 09C0                <1>     or   eax,eax
+  2037 000010DE 741F                <1>     jz   map_pmem_fail
+  2038 000010E0 C1E00C              <1>     shl  eax,12                 ; convert pgno to pgtbl entry
+  2039 000010E3 89043B              <1>     mov  [ebx+edi],eax          ; update page table
+  2040                              <1> 
+  2041                              <1> map_pmem_have_pgtbl :
+  2042                              <1>     ; for now, no security check, just direct map the address
+  2043                              <1>     ; and mark the pages and the page table r/w by all
+  2044 000010E6 830C3B07            <1>     or   dword [ebx+edi],7      ; user, r/w, present
+  2045                              <1> 
+  2046 000010EA 8B1C3B              <1>     mov  ebx,[ebx+edi]
+  2047 000010ED 81E300F0FFFF        <1>     and  ebx,0xfffff000
+  2048 000010F3 58                  <1>     pop  eax                    ; recover requested phys mem addr
+  2049                              <1>     ; FIXME yup, big security hole if called by ring 0! And it is ...
+  2050 000010F4 83C807              <1>     or   eax,7                  ; user, r/w, present
+  2051 000010F7 890413              <1>     mov  [ebx+edx],eax          ; update page directory
+  2052 000010FA 31C0                <1>     xor  eax,eax                ; 0
+  2053                              <1> map_pmem_exit :
+  2054 000010FC 5F                  <1>     pop  edi
+  2055 000010FD 5B                  <1>     pop  ebx
+  2056 000010FE C3                  <1>     ret
+  2057                              <1> 
+  2058                              <1> map_pmem_fail :
+  2059 000010FF 48                  <1>     dec  eax                    ; -1
+  2060 00001100 EBFA                <1>     jmp  map_pmem_exit
+  2061                              <1> 
+  2062                                  
+  2063 00001102 00<rept>                align 16, db 0
+  2064                                  kernel_text_size equ ($-textstart)
+  2065                                  
+  2066                                  ; ---------------------------------------------------------------------------
+  2067                                  section .data
+  2068                                  datastart :
+  2069                                  
+  2070                                  ; -------- descriptors --------------
+  2071                                  ; Intel SW dev manual 3a, 3.4.5, pg 103
+  2072                                  ;
+  2073                                  ; In my opinion, macros for descriptor entries
+  2074                                  ; don't make the code that much more readable.
+  2075                                  
+  2076                                  descriptor_size equ 8
+  2077                                  
+  2078                                  gdt :
+  2079                                  nullsel equ $-gdt           ; nullsel = 0h
+  2080 00000000 0000000000000000            dd 0,0                  ; first descriptor per convention is 0
   2081                                  
-  2082                                  tasksel_k00 equ $-gdt
-  2083 00000050 6800[3802]00894000                              dw tss_len, tss0, 0x8900, 0x40
-  2084                                  tasksel_u00 equ $-gdt
-  2085 00000058 6800[A002]00894000                              dw tss_len, tss1, 0x8900, 0x40
-  2086                                  tasksel_k01 equ $-gdt
-  2087 00000060 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2088                                  tasksel_u01 equ $-gdt
-  2089 00000068 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2090                                  tasksel_k02 equ $-gdt
-  2091 00000070 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2092                                  tasksel_u02 equ $-gdt
-  2093 00000078 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2094                                  tasksel_k03 equ $-gdt
-  2095 00000080 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2096                                  tasksel_u03 equ $-gdt
-  2097 00000088 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2098                                  tasksel_k04 equ $-gdt
-  2099 00000090 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2100                                  tasksel_u04 equ $-gdt
-  2101 00000098 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2102                                  tasksel_k05 equ $-gdt
-  2103 000000A0 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2104                                  tasksel_u05 equ $-gdt
-  2105 000000A8 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2106                                  tasksel_k06 equ $-gdt
-  2107 000000B0 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2108                                  tasksel_u06 equ $-gdt
-  2109 000000B8 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2110                                  tasksel_k07 equ $-gdt
-  2111 000000C0 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2112                                  tasksel_u07 equ $-gdt
-  2113 000000C8 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2114                                  tasksel_k08 equ $-gdt
-  2115 000000D0 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2116                                  tasksel_u08 equ $-gdt
-  2117 000000D8 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2118                                  tasksel_k09 equ $-gdt
-  2119 000000E0 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2120                                  tasksel_u09 equ $-gdt
-  2121 000000E8 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2122                                  tasksel_k10 equ $-gdt
-  2123 000000F0 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2124                                  tasksel_u10 equ $-gdt
-  2125 000000F8 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2126                                  tasksel_k11 equ $-gdt
-  2127 00000100 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2128                                  tasksel_u11 equ $-gdt
-  2129 00000108 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2130                                  tasksel_k12 equ $-gdt
-  2131 00000110 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2132                                  tasksel_u12 equ $-gdt
-  2133 00000118 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2134                                  tasksel_k13 equ $-gdt
-  2135 00000120 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2136                                  tasksel_u13 equ $-gdt
-  2137 00000128 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2138                                  tasksel_k14 equ $-gdt
-  2139 00000130 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2140                                  tasksel_u14 equ $-gdt
-  2141 00000138 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2142                                  tasksel_k15 equ $-gdt
-  2143 00000140 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2144                                  tasksel_u15 equ $-gdt
-  2145 00000148 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
-  2146                                  
-  2147                                  max_threads equ ($-gdt-tasksel_k00)/descriptor_size/2
-  2148                                  
-  2149                                  gdt_end :
-  2150                                  
-  2151                                  ; ---------------------
-  2152                                  
-  2153                                  ldt1 :
-  2154                                  nullsel1 equ $-ldt1         ; nullsel1 = 07h
-  2155 00000150 0000000000000000            dd 0,0                  ; first descriptor per convention is 0
-  2156                                  
-  2157                                  codesel1 equ $-ldt1         ; codesel1 = 0fh  4Gb flat over all logical mem
-  2158 00000158 FFFF                        dw 0xffff               ; limit 0-15
-  2159 0000015A 0000                        dw 0x0000               ; base  0-15
-  2160 0000015C 00                          db 0x00                 ; base 16-23
-  2161 0000015D FA                          db 0xfa                 ; present, dpl=3, code e/r
-  2162 0000015E CF                          db 0xcf                 ; 4k granular, 32bit, limit 16-19
-  2163 0000015F 00                          db 0x00                 ; base 24-31
-  2164                                  
-  2165                                  datasel1 equ $-ldt1         ; datasel1 = 17h  4Gb flat over all logical mem
-  2166 00000160 FFFF                        dw 0xffff               ; limit 0-15
-  2167 00000162 0000                        dw 0x0000               ; base  0-15
-  2168 00000164 00                          db 0x00                 ; base 16-23
-  2169 00000165 F2                          db 0xf2                 ; present, dpl=3, data r/w
-  2170 00000166 CF                          db 0xcf                 ; 4k granular, 32bit, limit 16-19
-  2171 00000167 00                          db 0x00                 ; base 24-31
-  2172                                  
-  2173                                  ; gcc wants the ds, es, and ss segment registers to match
-  2174                                  ;stacksel1 equ $-ldt1        ; stacksel = 1ch  small limited stack
-  2175                                  ;    dw 0xffff               ; limit
-  2176                                  ;    dw 0x0000               ; base  0-15
-  2177                                  ;    db 0x00
-  2178                                  ;    db 0xf2                 ; present, dpl=3, data, r/w
-  2179                                  ;    db 0                    ; byte granular, 16 bit
-  2180                                  ;    db 0
-  2181                                  
-  2182                                  ldt1_end :
-  2183                                  
-  2184                                  ldt1_len equ ldt1_end-ldt1
-  2185                                  
-  2186                                  ; ---------------------
-  2187                                  ; the tss that handles double fault exceptions
-  2188                                  
-  2189                                  tss_f08 :                   ; intel sw 3a 7.6  pg 287 of 756
-  2190 00000168 00000000                    dw 0,0                  ; previous task link
-  2191 0000016C 005F0000                    dd tss_f08_stk-0x100    ; esp0
-  2192 00000170 10000000                    dw datasel,0            ; ss0
-  2193 00000174 00000000                    dd 0                    ; esp1
-  2194 00000178 00000000                    dw 0,0                  ; ss1
-  2195 0000017C 00000000                    dd 0                    ; esp2
-  2196 00000180 00000000                    dw 0,0                  ; ss2
-  2197                                  tss_f08_cr3 :
-  2198 00000184 00000000                    dd 0                    ; cr3
-  2199 00000188 [580C0000]                  dd int_handler_tg_dblflt ; eip
-  2200 0000018C 00000000                    dd 0                    ; eflags
-  2201 00000190 00000000                    dd 0                    ; eax
-  2202 00000194 00000000                    dd 0                    ; ecx
-  2203 00000198 00000000                    dd 0                    ; edx
-  2204 0000019C 00000000                    dd 0                    ; ebx
-  2205 000001A0 00600000                    dd tss_f08_stk          ; esp
-  2206 000001A4 00000000                    dd 0                    ; ebp
-  2207 000001A8 00000000                    dd 0                    ; esi
-  2208 000001AC 00000000                    dd 0                    ; edi
-  2209 000001B0 10000000                    dw datasel,0            ; es
-  2210 000001B4 08000000                    dw codesel,0            ; cs
-  2211 000001B8 10000000                    dw datasel,0            ; ss
-  2212 000001BC 10000000                    dw datasel,0            ; ds
-  2213 000001C0 00000000                    dw 0,0                  ; fs
-  2214 000001C4 20000000                    dw videosel,0           ; gs
-  2215 000001C8 00000000                    dw 0,0                  ; ldt
-  2216 000001CC 0000                        dw 0                    ; trap
-  2217 000001CE 0000                        dw 0                    ; iomap
-  2218                                  
-  2219                                  ; ---------------------
-  2220                                  ; the tss that handles invalid tss exceptions
-  2221                                  
-  2222                                  tss_f10 :                   ; intel sw 3a 7.6  pg 287 of 756
-  2223 000001D0 00000000                    dw 0,0                  ; previous task link
-  2224 000001D4 006F0000                    dd tss_f10_stk-0x100    ; esp0
-  2225 000001D8 10000000                    dw datasel,0            ; ss0
-  2226 000001DC 00000000                    dd 0                    ; esp1
-  2227 000001E0 00000000                    dw 0,0                  ; ss1
-  2228 000001E4 00000000                    dd 0                    ; esp2
-  2229 000001E8 00000000                    dw 0,0                  ; ss2
-  2230                                  tss_f10_cr3 :
-  2231 000001EC 00000000                    dd 0                    ; cr3
-  2232 000001F0 [6C0C0000]                  dd int_handler_tg_invtss ; eip
-  2233 000001F4 00000000                    dd 0                    ; eflags
-  2234 000001F8 00000000                    dd 0                    ; eax
-  2235 000001FC 00000000                    dd 0                    ; ecx
-  2236 00000200 00000000                    dd 0                    ; edx
-  2237 00000204 00000000                    dd 0                    ; ebx
-  2238 00000208 00700000                    dd tss_f10_stk          ; esp
-  2239 0000020C 00000000                    dd 0                    ; ebp
-  2240 00000210 00000000                    dd 0                    ; esi
-  2241 00000214 00000000                    dd 0                    ; edi
-  2242 00000218 10000000                    dw datasel,0            ; es
-  2243 0000021C 08000000                    dw codesel,0            ; cs
-  2244 00000220 10000000                    dw datasel,0            ; ss
-  2245 00000224 10000000                    dw datasel,0            ; ds
-  2246 00000228 00000000                    dw 0,0                  ; fs
-  2247 0000022C 20000000                    dw videosel,0           ; gs
-  2248 00000230 00000000                    dw 0,0                  ; ldt
-  2249 00000234 0000                        dw 0                    ; trap
-  2250 00000236 0000                        dw 0                    ; iomap
-  2251                                  
-  2252                                  ; ---------------------
-  2253                                  ; tss0 and tss1 are cpu0's pair
-  2254                                  
-  2255                                  tss0 :                      ; intel swdev3a 7.6  pg 287 of 756
-  2256 00000238 00000000                    dw 0,0                  ; previous task link
-  2257                                  tss0_esp0 :
-  2258 0000023C 00000000                    dd 0                    ; esp0
-  2259                                  tss0_ss0 :
-  2260 00000240 00000000                    dw 0,0                  ; ss0
-  2261 00000244 00000000                    dd 0                    ; esp1
-  2262 00000248 00000000                    dw 0,0                  ; ss1
-  2263 0000024C 00000000                    dd 0                    ; esp2
-  2264 00000250 00000000                    dw 0,0                  ; ss2
-  2265                                  tss0_cr3 :
-  2266 00000254 00000000                    dd 0                    ; cr3
-  2267                                  tss0_eip :
-  2268 00000258 00000000                    dd 0                    ; eip
-  2269 0000025C 00000000                    dd 0                    ; eflags
-  2270                                  tss0_eax :
-  2271 00000260 00000000                    dd 0                    ; eax
-  2272 00000264 00000000                    dd 0                    ; ecx
-  2273 00000268 00000000                    dd 0                    ; edx
-  2274 0000026C 00000000                    dd 0                    ; ebx
-  2275                                  tss0_esp :
-  2276 00000270 00000000                    dd 0                    ; esp
-  2277 00000274 00000000                    dd 0                    ; ebp
-  2278 00000278 00000000                    dd 0                    ; esi
-  2279 0000027C 00000000                    dd 0                    ; edi
-  2280                                  tss0_es :
-  2281 00000280 00000000                    dw 0,0                  ; es
-  2282                                  tss0_cs :
-  2283 00000284 00000000                    dw 0,0                  ; cs
-  2284                                  tss0_ss :
-  2285 00000288 00000000                    dw 0,0                  ; ss
-  2286                                  tss0_ds :
-  2287 0000028C 00000000                    dw 0,0                  ; ds
-  2288 00000290 00000000                    dw 0,0                  ; fs
-  2289 00000294 20000000                    dw videosel,0           ; gs
-  2290                                  tss0_ldt :
-  2291 00000298 00000000                    dw 0,0                  ; ldt
-  2292 0000029C 0000                        dw 0                    ; trap
-  2293 0000029E 0000                        dw 0                    ; iomap
-  2294                                  tss0_end :
-  2295                                  
-  2296                                  tss_len equ tss0_end-tss0
-  2297                                  
-  2298                                  ; user tss
+  2082                                  codesel equ $-gdt           ; codesel = 8h  4Gb flat over all logical mem
+  2083 00000008 FFFF                        dw 0xffff               ; limit 0-15
+  2084 0000000A 0000                        dw 0x0000               ; base  0-15
+  2085 0000000C 00                          db 0x00                 ; base 16-23
+  2086 0000000D 9A                          db 0x9a                 ; present, dpl=0, code e/r
+  2087 0000000E CF                          db 0xcf                 ; 4k granular, 32bit/8bit, limit 16-19
+  2088 0000000F 00                          db 0x00                 ; base 24-31
+  2089                                  
+  2090                                  datasel equ $-gdt           ; datasel = 10h  4Gb flat over all logical mem
+  2091 00000010 FFFF                        dw 0xffff               ; limit 0-15
+  2092 00000012 0000                        dw 0x0000               ; base  0-15
+  2093 00000014 00                          db 0x00                 ; base 16-23
+  2094 00000015 92                          db 0x92                 ; present, dpl=0, data r/w
+  2095 00000016 CF                          db 0xcf                 ; 4k granular, 32bit/8bit, limit 16-19
+  2096 00000017 00                          db 0x00                 ; base 24-31
+  2097                                  
+  2098                                  stacksel equ $-gdt          ; stacksel = 18h  small limited stack
+  2099 00000018 FF1F                        dw kstack_size-1        ; limit
+  2100 0000001A 0010                        dw kstack_loc           ; base
+  2101 0000001C 00                          db 0
+  2102 0000001D 92                          db 0x92                 ; present, dpl=0, data, r/w
+  2103 0000001E 40                          db 0x40                 ; byte granular, 32bit/8bit
+  2104 0000001F 00                          db 0
+  2105                                  
+  2106                                  videosel equ $-gdt          ; videosel = 20h
+  2107 00000020 9F0F                        dw 3999                 ; limit 80*25*2-1
+  2108 00000022 0080                        dw 0x8000               ; base 0xb8000
+  2109 00000024 0B                          db 0x0b
+  2110 00000025 92                          db 0x92                 ; present, dpl=0, data, r/w
+  2111 00000026 40                          db 0x40                 ; byte granular, 32bit/8bit
+  2112 00000027 00                          db 0
+  2113                                  
+  2114                                  rmcssel equ $-gdt           ; real mode CS selector = 28h
+  2115 00000028 FFFF                        dw 0xffff               ; limit 0-15
+  2116 0000002A 0000                        dw 0x0000               ; base  0-15
+  2117 0000002C 00                          db 0x00                 ; base 16-23
+  2118 0000002D 9A                          db 0x9a                 ; present, dpl=0, code e/r
+  2119 0000002E 0F                          db 0x0f                 ; byte granular, 16bit, limit 16-19
+  2120 0000002F 00                          db 0x00                 ; base 24-31
+  2121                                  
+  2122                                  rmdssel equ $-gdt           ; real mode DS selector = 30h
+  2123 00000030 FFFF                        dw 0xffff               ; limit 0-15
+  2124 00000032 0000                        dw 0x0000               ; base  0-15
+  2125 00000034 00                          db 0x00                 ; base 16-23
+  2126 00000035 92                          db 0x92                 ; present, dpl=0, data r/w
+  2127 00000036 0F                          db 0x0f                 ; byte granular, 16bit, limit 16-19
+  2128 00000037 00                          db 0x00                 ; base 24-31
+  2129                                  
+  2130                                  ldtsel1 equ $-gdt
+  2131 00000038 1800                        dw ldt1_len             ; length of the ldt
+  2132 0000003A [5001]                      dw ldt1                 ; address of the ldt
+  2133 0000003C 00                          db 0
+  2134 0000003D 82                          db 0x82                 ; present, dpl=0, ldt
+  2135 0000003E 40                          db 0x40                 ; byte granular, 32bit/8bit
+  2136 0000003F 00                          db 0
+  2137                                  
+  2138                                  tasksel_f08 equ $-gdt       ; the double fault task selector
+  2139 00000040 6800                        dw tss_len              ; tss length
+  2140 00000042 [6801]                      dw tss_f08              ; tss physical address
+  2141 00000044 00                          db 0
+  2142 00000045 89                          db 0x89                 ; present, dpl=0, tss32
+  2143 00000046 40                          db 0x40                 ; byte granular, 32bit/8bit
+  2144 00000047 00                          db 0
+  2145                                  
+  2146                                  tasksel_f10 equ $-gdt       ; the invalid tss task selector
+  2147 00000048 6800                        dw tss_len              ; tss length
+  2148 0000004A [D001]                      dw tss_f10              ; tss physical address
+  2149 0000004C 00                          db 0
+  2150 0000004D 89                          db 0x89                 ; present, dpl=0, tss32
+  2151 0000004E 40                          db 0x40                 ; byte granular, 32bit/8bit
+  2152 0000004F 00                          db 0
+  2153                                  
+  2154                                  ; there is one kernel thread tss (ring 0) and one user thread tss (ring 1)
+  2155                                  ; per cpu.  memory for tss structs for the non-boot cpus are allocated as
+  2156                                  ; each non-boot cpu comes online (see create_tss_pair).  tasksel_uXX tss
+  2157                                  ; gates are installed in the idt (starting at first_thread_tss_gate),
+  2158                                  ; they also map 1-to-1 with cpus.  (the thread is launched via an lapic
+  2159                                  ; vectored interrupt that jumps immediately into user space - and to call a
+  2160                                  ; task gate from an interrupt requires an existing ring 0 tss to be active)
+  2161                                  ; tasksel_uXX tsses are initialized in new_thread.
+  2162                                  
+  2163                                  tasksel_k00 equ $-gdt
+  2164 00000050 6800[3802]00894000                              dw tss_len, tss0, 0x8900, 0x40
+  2165                                  tasksel_u00 equ $-gdt
+  2166 00000058 6800[A002]00894000                              dw tss_len, tss1, 0x8900, 0x40
+  2167                                  tasksel_k01 equ $-gdt
+  2168 00000060 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2169                                  tasksel_u01 equ $-gdt
+  2170 00000068 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2171                                  tasksel_k02 equ $-gdt
+  2172 00000070 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2173                                  tasksel_u02 equ $-gdt
+  2174 00000078 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2175                                  tasksel_k03 equ $-gdt
+  2176 00000080 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2177                                  tasksel_u03 equ $-gdt
+  2178 00000088 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2179                                  tasksel_k04 equ $-gdt
+  2180 00000090 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2181                                  tasksel_u04 equ $-gdt
+  2182 00000098 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2183                                  tasksel_k05 equ $-gdt
+  2184 000000A0 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2185                                  tasksel_u05 equ $-gdt
+  2186 000000A8 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2187                                  tasksel_k06 equ $-gdt
+  2188 000000B0 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2189                                  tasksel_u06 equ $-gdt
+  2190 000000B8 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2191                                  tasksel_k07 equ $-gdt
+  2192 000000C0 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2193                                  tasksel_u07 equ $-gdt
+  2194 000000C8 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2195                                  tasksel_k08 equ $-gdt
+  2196 000000D0 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2197                                  tasksel_u08 equ $-gdt
+  2198 000000D8 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2199                                  tasksel_k09 equ $-gdt
+  2200 000000E0 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2201                                  tasksel_u09 equ $-gdt
+  2202 000000E8 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2203                                  tasksel_k10 equ $-gdt
+  2204 000000F0 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2205                                  tasksel_u10 equ $-gdt
+  2206 000000F8 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2207                                  tasksel_k11 equ $-gdt
+  2208 00000100 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2209                                  tasksel_u11 equ $-gdt
+  2210 00000108 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2211                                  tasksel_k12 equ $-gdt
+  2212 00000110 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2213                                  tasksel_u12 equ $-gdt
+  2214 00000118 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2215                                  tasksel_k13 equ $-gdt
+  2216 00000120 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2217                                  tasksel_u13 equ $-gdt
+  2218 00000128 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2219                                  tasksel_k14 equ $-gdt
+  2220 00000130 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2221                                  tasksel_u14 equ $-gdt
+  2222 00000138 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2223                                  tasksel_k15 equ $-gdt
+  2224 00000140 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2225                                  tasksel_u15 equ $-gdt
+  2226 00000148 6800000000894000                                dw tss_len, 0, 0x8900, 0x40
+  2227                                  
+  2228                                  max_threads equ ($-gdt-tasksel_k00)/descriptor_size/2
+  2229                                  
+  2230                                  gdt_end :
+  2231                                  
+  2232                                  ; ---------------------
+  2233                                  
+  2234                                  ldt1 :
+  2235                                  nullsel1 equ $-ldt1         ; nullsel1 = 07h
+  2236 00000150 0000000000000000            dd 0,0                  ; first descriptor per convention is 0
+  2237                                  
+  2238                                  codesel1 equ $-ldt1         ; codesel1 = 0fh  4Gb flat over all logical mem
+  2239 00000158 FFFF                        dw 0xffff               ; limit 0-15
+  2240 0000015A 0000                        dw 0x0000               ; base  0-15
+  2241 0000015C 00                          db 0x00                 ; base 16-23
+  2242 0000015D FA                          db 0xfa                 ; present, dpl=3, code e/r
+  2243 0000015E CF                          db 0xcf                 ; 4k granular, 32bit, limit 16-19
+  2244 0000015F 00                          db 0x00                 ; base 24-31
+  2245                                  
+  2246                                  datasel1 equ $-ldt1         ; datasel1 = 17h  4Gb flat over all logical mem
+  2247 00000160 FFFF                        dw 0xffff               ; limit 0-15
+  2248 00000162 0000                        dw 0x0000               ; base  0-15
+  2249 00000164 00                          db 0x00                 ; base 16-23
+  2250 00000165 F2                          db 0xf2                 ; present, dpl=3, data r/w
+  2251 00000166 CF                          db 0xcf                 ; 4k granular, 32bit, limit 16-19
+  2252 00000167 00                          db 0x00                 ; base 24-31
+  2253                                  
+  2254                                  ; gcc wants the ds, es, and ss segment registers to match
+  2255                                  ;stacksel1 equ $-ldt1        ; stacksel = 1ch  small limited stack
+  2256                                  ;    dw 0xffff               ; limit
+  2257                                  ;    dw 0x0000               ; base  0-15
+  2258                                  ;    db 0x00
+  2259                                  ;    db 0xf2                 ; present, dpl=3, data, r/w
+  2260                                  ;    db 0                    ; byte granular, 16 bit
+  2261                                  ;    db 0
+  2262                                  
+  2263                                  ldt1_end :
+  2264                                  
+  2265                                  ldt1_len equ ldt1_end-ldt1
+  2266                                  
+  2267                                  ; ---------------------
+  2268                                  ; the tss that handles double fault exceptions
+  2269                                  
+  2270                                  tss_f08 :                   ; intel sw 3a 7.6  pg 287 of 756
+  2271 00000168 00000000                    dw 0,0                  ; previous task link
+  2272 0000016C 005F0000                    dd tss_f08_stk-0x100    ; esp0
+  2273 00000170 10000000                    dw datasel,0            ; ss0
+  2274 00000174 00000000                    dd 0                    ; esp1
+  2275 00000178 00000000                    dw 0,0                  ; ss1
+  2276 0000017C 00000000                    dd 0                    ; esp2
+  2277 00000180 00000000                    dw 0,0                  ; ss2
+  2278                                  tss_f08_cr3 :
+  2279 00000184 00000000                    dd 0                    ; cr3
+  2280 00000188 [BC0C0000]                  dd int_handler_tg_dblflt ; eip
+  2281 0000018C 00000000                    dd 0                    ; eflags
+  2282 00000190 00000000                    dd 0                    ; eax
+  2283 00000194 00000000                    dd 0                    ; ecx
+  2284 00000198 00000000                    dd 0                    ; edx
+  2285 0000019C 00000000                    dd 0                    ; ebx
+  2286 000001A0 00600000                    dd tss_f08_stk          ; esp
+  2287 000001A4 00000000                    dd 0                    ; ebp
+  2288 000001A8 00000000                    dd 0                    ; esi
+  2289 000001AC 00000000                    dd 0                    ; edi
+  2290 000001B0 10000000                    dw datasel,0            ; es
+  2291 000001B4 08000000                    dw codesel,0            ; cs
+  2292 000001B8 10000000                    dw datasel,0            ; ss
+  2293 000001BC 10000000                    dw datasel,0            ; ds
+  2294 000001C0 00000000                    dw 0,0                  ; fs
+  2295 000001C4 20000000                    dw videosel,0           ; gs
+  2296 000001C8 00000000                    dw 0,0                  ; ldt
+  2297 000001CC 0000                        dw 0                    ; trap
+  2298 000001CE 0000                        dw 0                    ; iomap
   2299                                  
-  2300                                  tss1 :                      ; intel sw 3a 7.6  pg 287 of 756
-  2301 000002A0 00000000                    dw 0,0                  ; previous task link
-  2302                                  tss1_esp0 :
-  2303 000002A4 00000000                    dd 0                    ; esp0  (int and irq support)
-  2304 000002A8 18000000                    dw stacksel,0           ; ss0   (filled in when running init apps)
-  2305 000002AC 00000000                    dd 0                    ; esp1
-  2306 000002B0 00000000                    dw 0,0                  ; ss1
-  2307 000002B4 00000000                    dd 0                    ; esp2
-  2308 000002B8 00000000                    dw 0,0                  ; ss2
-  2309                                  tss1_cr3 :
-  2310 000002BC 00000000                    dd 0                    ; cr3
-  2311                                  tss1_eip :
-  2312 000002C0 00000000                    dd 0                    ; eip
-  2313 000002C4 00000000                    dd 0                    ; eflags
-  2314 000002C8 00000000                    dd 0                    ; eax
-  2315 000002CC 00000000                    dd 0                    ; ecx
-  2316 000002D0 00000000                    dd 0                    ; edx
-  2317 000002D4 00000000                    dd 0                    ; ebx
-  2318 000002D8 00000000                    dd 0                    ; esp
-  2319 000002DC 00000000                    dd 0                    ; ebp
-  2320 000002E0 00000000                    dd 0                    ; esi
-  2321 000002E4 00000000                    dd 0                    ; edi
-  2322 000002E8 17000000                    dw datasel1+7,0         ; es
-  2323 000002EC 0F000000                    dw codesel1+7,0         ; cs
-  2324 000002F0 17000000                    dw datasel1+7,0         ; ss
-  2325 000002F4 17000000                    dw datasel1+7,0         ; ds
-  2326 000002F8 00000000                    dw 0,0                  ; fs
-  2327 000002FC 00000000                    dw 0,0                  ; gs
-  2328 00000300 3B000000                    dw ldtsel1+3,0          ; ldt
-  2329 00000304 0000                        dw 0                    ; trap
-  2330 00000306 0000                        dw 0                    ; iomap
-  2331                                  
-  2332                                  ; ---------------------
-  2333                                  
-  2334                                  gdtr :
-  2335 00000308 4F01                        dw gdt_end - gdt - 1    ; gdt length
-  2336 0000030A [00000000]                  dd gdt                  ; gdt physical address
-  2337                                  
-  2338                                  idtr :
-  2339                                      ; irq_setup_table_size == the number of gates in the idt
-  2340 0000030E FF07                        dw irq_setup_table_size * 8 - 1     ; idt limit (should be 2k)
-  2341                                  idtr_addr :
-  2342 00000310 00000000                    dd 0                                ; address of the idt
-  2343                                  
-  2344 00000314 00000000                ncpus           dd 0        ; number of running cpus
-  2345                                  
-  2346 00000318 00000000                next_free_page  dd 0        ; initialized after page tables are setup
-  2347                                  
-  2348 0000031C 0000000000000000        sleepers        dq 0        ; one bit per cpu
-  2349                                  
-  2350 00000324 00000000                pgdirp          dd 0
-  2351 00000328 00000000                pgtb0p          dd 0
-  2352 0000032C 00000000                pgtb1p          dd 0
-  2353                                  
-  2354 00000330 00                      enabled_lapic   db 0        ; set to 1 if an lapic is present and in use
-  2355                                  
-  2356 00000331 AA55                    dbgwall         db 0xaa,0x55
-  2357                                  
-  2358 00000333 00<rept>                align 16, db 0
-  2359                                  kernel_data_size equ ($-datastart)
-  2360                                  
-  2361                                  
-  2362                                  ; ---------------------
-  2363                                  ; Need to align to a physical page boundary here so that appended init apps
-  2364                                  ; are always page aligned.  The problem is our text section starts 1k below
-  2365                                  ; a page boundary, and so an 'align 4096' doesn't match up with physical
-  2366                                  ; memory.
-  2367                                  
-  2368                                  ; Add larger tests here if the times expression turns up negative, to make
-  2369                                  ; the kernel image size right, but your next problem will be that the boot
-  2370                                  ; loader will likely refuse to load all these sectors during stage2.
-  2371                                  
-  2372                                  section .fill
-  2373                                  
-  2374                                  fill :
-  2375                                  
-  2376                                  %if total_size > 4096+1024
-  2377                                      times (4096+4096+1024-total_size) db 0
-  2378                                  %elif total_size > 1024
-  2379 00000000 00<rept>                    times (4096+1024-total_size) db 0
-  2380                                  %endif
-  2381                                  
-  2382                                  kend :
-  2383                                  
+  2300                                  ; ---------------------
+  2301                                  ; the tss that handles invalid tss exceptions
+  2302                                  
+  2303                                  tss_f10 :                   ; intel sw 3a 7.6  pg 287 of 756
+  2304 000001D0 00000000                    dw 0,0                  ; previous task link
+  2305 000001D4 006F0000                    dd tss_f10_stk-0x100    ; esp0
+  2306 000001D8 10000000                    dw datasel,0            ; ss0
+  2307 000001DC 00000000                    dd 0                    ; esp1
+  2308 000001E0 00000000                    dw 0,0                  ; ss1
+  2309 000001E4 00000000                    dd 0                    ; esp2
+  2310 000001E8 00000000                    dw 0,0                  ; ss2
+  2311                                  tss_f10_cr3 :
+  2312 000001EC 00000000                    dd 0                    ; cr3
+  2313 000001F0 [D00C0000]                  dd int_handler_tg_invtss ; eip
+  2314 000001F4 00000000                    dd 0                    ; eflags
+  2315 000001F8 00000000                    dd 0                    ; eax
+  2316 000001FC 00000000                    dd 0                    ; ecx
+  2317 00000200 00000000                    dd 0                    ; edx
+  2318 00000204 00000000                    dd 0                    ; ebx
+  2319 00000208 00700000                    dd tss_f10_stk          ; esp
+  2320 0000020C 00000000                    dd 0                    ; ebp
+  2321 00000210 00000000                    dd 0                    ; esi
+  2322 00000214 00000000                    dd 0                    ; edi
+  2323 00000218 10000000                    dw datasel,0            ; es
+  2324 0000021C 08000000                    dw codesel,0            ; cs
+  2325 00000220 10000000                    dw datasel,0            ; ss
+  2326 00000224 10000000                    dw datasel,0            ; ds
+  2327 00000228 00000000                    dw 0,0                  ; fs
+  2328 0000022C 20000000                    dw videosel,0           ; gs
+  2329 00000230 00000000                    dw 0,0                  ; ldt
+  2330 00000234 0000                        dw 0                    ; trap
+  2331 00000236 0000                        dw 0                    ; iomap
+  2332                                  
+  2333                                  ; ---------------------
+  2334                                  ; tss0 and tss1 are cpu0's pair
+  2335                                  
+  2336                                  tss0 :                      ; intel swdev3a 7.6  pg 287 of 756
+  2337 00000238 00000000                    dw 0,0                  ; previous task link
+  2338                                  tss0_esp0 :
+  2339 0000023C 00000000                    dd 0                    ; esp0
+  2340                                  tss0_ss0 :
+  2341 00000240 00000000                    dw 0,0                  ; ss0
+  2342 00000244 00000000                    dd 0                    ; esp1
+  2343 00000248 00000000                    dw 0,0                  ; ss1
+  2344 0000024C 00000000                    dd 0                    ; esp2
+  2345 00000250 00000000                    dw 0,0                  ; ss2
+  2346                                  tss0_cr3 :
+  2347 00000254 00000000                    dd 0                    ; cr3
+  2348                                  tss0_eip :
+  2349 00000258 00000000                    dd 0                    ; eip
+  2350 0000025C 00000000                    dd 0                    ; eflags
+  2351                                  tss0_eax :
+  2352 00000260 00000000                    dd 0                    ; eax
+  2353 00000264 00000000                    dd 0                    ; ecx
+  2354 00000268 00000000                    dd 0                    ; edx
+  2355 0000026C 00000000                    dd 0                    ; ebx
+  2356                                  tss0_esp :
+  2357 00000270 00000000                    dd 0                    ; esp
+  2358 00000274 00000000                    dd 0                    ; ebp
+  2359 00000278 00000000                    dd 0                    ; esi
+  2360 0000027C 00000000                    dd 0                    ; edi
+  2361                                  tss0_es :
+  2362 00000280 00000000                    dw 0,0                  ; es
+  2363                                  tss0_cs :
+  2364 00000284 00000000                    dw 0,0                  ; cs
+  2365                                  tss0_ss :
+  2366 00000288 00000000                    dw 0,0                  ; ss
+  2367                                  tss0_ds :
+  2368 0000028C 00000000                    dw 0,0                  ; ds
+  2369 00000290 00000000                    dw 0,0                  ; fs
+  2370 00000294 20000000                    dw videosel,0           ; gs
+  2371                                  tss0_ldt :
+  2372 00000298 00000000                    dw 0,0                  ; ldt
+  2373 0000029C 0000                        dw 0                    ; trap
+  2374 0000029E 0000                        dw 0                    ; iomap
+  2375                                  tss0_end :
+  2376                                  
+  2377                                  tss_len equ tss0_end-tss0
+  2378                                  
+  2379                                  ; user tss
+  2380                                  
+  2381                                  tss1 :                      ; intel sw 3a 7.6  pg 287 of 756
+  2382 000002A0 00000000                    dw 0,0                  ; previous task link
+  2383                                  tss1_esp0 :
+  2384 000002A4 00000000                    dd 0                    ; esp0  (int and irq support)
+  2385 000002A8 18000000                    dw stacksel,0           ; ss0   (filled in when running init apps)
+  2386 000002AC 00000000                    dd 0                    ; esp1
+  2387 000002B0 00000000                    dw 0,0                  ; ss1
+  2388 000002B4 00000000                    dd 0                    ; esp2
+  2389 000002B8 00000000                    dw 0,0                  ; ss2
+  2390                                  tss1_cr3 :
+  2391 000002BC 00000000                    dd 0                    ; cr3
+  2392                                  tss1_eip :
+  2393 000002C0 00000000                    dd 0                    ; eip
+  2394 000002C4 00000000                    dd 0                    ; eflags
+  2395 000002C8 00000000                    dd 0                    ; eax
+  2396 000002CC 00000000                    dd 0                    ; ecx
+  2397 000002D0 00000000                    dd 0                    ; edx
+  2398 000002D4 00000000                    dd 0                    ; ebx
+  2399 000002D8 00000000                    dd 0                    ; esp
+  2400 000002DC 00000000                    dd 0                    ; ebp
+  2401 000002E0 00000000                    dd 0                    ; esi
+  2402 000002E4 00000000                    dd 0                    ; edi
+  2403 000002E8 17000000                    dw datasel1+7,0         ; es
+  2404 000002EC 0F000000                    dw codesel1+7,0         ; cs
+  2405 000002F0 17000000                    dw datasel1+7,0         ; ss
+  2406 000002F4 17000000                    dw datasel1+7,0         ; ds
+  2407 000002F8 00000000                    dw 0,0                  ; fs
+  2408 000002FC 00000000                    dw 0,0                  ; gs
+  2409 00000300 3B000000                    dw ldtsel1+3,0          ; ldt
+  2410 00000304 0000                        dw 0                    ; trap
+  2411 00000306 0000                        dw 0                    ; iomap
+  2412                                  
+  2413                                  ; ---------------------
+  2414                                  
+  2415                                  gdtr :
+  2416 00000308 4F01                        dw gdt_end - gdt - 1    ; gdt length
+  2417 0000030A [00000000]                  dd gdt                  ; gdt physical address
+  2418                                  
+  2419                                  idtr :
+  2420                                      ; irq_setup_table_size == the number of gates in the idt
+  2421 0000030E FF07                        dw irq_setup_table_size * 8 - 1     ; idt limit (should be 2k)
+  2422                                  idtr_addr :
+  2423 00000310 00000000                    dd 0                                ; address of the idt
+  2424                                  
+  2425 00000314 00000000                ncpus           dd 0        ; number of running cpus
+  2426                                  
+  2427 00000318 00000000                next_free_page  dd 0        ; initialized after page tables are setup
+  2428                                  
+  2429 0000031C 0000000000000000        sleepers        dq 0        ; one bit per cpu
+  2430                                  
+  2431 00000324 00000000                pgdirp          dd 0
+  2432 00000328 00000000                pgtb0p          dd 0
+  2433 0000032C 00000000                pgtb1p          dd 0
+  2434                                  
+  2435 00000330 00                      enabled_lapic   db 0        ; set to 1 if an lapic is present and in use
+  2436                                  
+  2437 00000331 AA55                    dbgwall         db 0xaa,0x55
+  2438                                  
+  2439 00000333 00<rept>                align 16, db 0
+  2440                                  kernel_data_size equ ($-datastart)
+  2441                                  
+  2442                                  
+  2443                                  ; ---------------------
+  2444                                  ; Need to align to a physical page boundary here so that appended init apps
+  2445                                  ; are always page aligned.  The problem is our text section starts 1k below
+  2446                                  ; a page boundary, and so an 'align 4096' doesn't match up with physical
+  2447                                  ; memory.
+  2448                                  
+  2449                                  ; Add larger tests here if the times expression turns up negative, to make
+  2450                                  ; the kernel image size right, but your next problem will be that the boot
+  2451                                  ; loader will likely refuse to load all these sectors during stage2.
+  2452                                  
+  2453                                  section .fill
+  2454                                  
+  2455                                  fill :
+  2456                                  
+  2457                                  %if total_size > 4096+1024
+  2458 00000000 00<rept>                    times (4096+4096+1024-total_size) db 0
+  2459                                  %elif total_size > 1024
+  2460                                      times (4096+1024-total_size) db 0
+  2461                                  %endif
+  2462                                  
+  2463                                  kend :
+  2464                                  

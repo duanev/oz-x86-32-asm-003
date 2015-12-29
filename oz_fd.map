@@ -9,9 +9,9 @@ Output file:  oz_fd1
 ---- No Section ---------------------------------------------------------------
 
 Value     Name
-000013E0  total_size
-0000003A  kisectors
-0000F000  kilast
+00001450  total_size
+0000003B  kisectors
+0000F200  kilast
 00000007  max_ncpus_l2
 0000000D  kstack_size_l2
 00002000  kstack_size
@@ -30,7 +30,7 @@ Value     Name
 000000F0  apicerr_int
 000000FE  wakeup_int
 00000100  irq_setup_table_size
-000010A0  kernel_text_size
+00001110  kernel_text_size
 00000008  descriptor_size
 00000000  nullsel
 00000008  codesel
@@ -199,95 +199,96 @@ Real              Virtual           Name
             8680              8680  int_handler_algnchk
             8694              8694  int_handler_machchk
             86A8              86A8  int_handler_simdfpe
-            86BC              86BC  int_handler_timer
-            8703              8703  no_sleepers
-            870C              870C  int_handler_kbd
+            86B9              86B9  display_irq
+            86DC              86DC  int_handler_timer
+            870C              870C  no_sleepers
+            8714              8714  int_handler_kbd
             8740              8740  int_handler_hw02
-            8754              8754  int_handler_hw03
-            8768              8768  int_handler_hw04
-            877C              877C  int_handler_hw05
-            8790              8790  int_handler_hw06
-            87A4              87A4  int_handler_hw07
-            87B8              87B8  int_handler_hw08
-            87CC              87CC  int_handler_hw09
-            87E0              87E0  int_handler_hw10
-            87F4              87F4  int_handler_hw11
-            8808              8808  int_handler_hw12
-            881C              881C  int_handler_hw13
-            8830              8830  int_handler_hw14
-            8844              8844  int_handler_hw15
-            8858              8858  int_handler_tg_dblflt
-            886C              886C  int_handler_tg_invtss
-            8888              8888  int_handler_spurious
-            8898              8898  int_handler_apicerr
-            88A8              88A8  wakeup
-            88B4              88B4  sysent
-            8904              8904  irq_print_msg
-            8953              8953  skip_cpumsg
-            8958              8958  reboot_on_alt_key
-            8958              8958  reboot_on_alt_key_loop
-            895E              895E  reboot
-            896C              896C  reboot_exit_pmode
-            898A              898A  reboot_idt
-            8990              8990  irq_types
-            8994              8994  irq_setup_table
-            8B94              8B94  syscall_klog
-            8BA3              8BA3  syscall_sipi_vector
-            8BA9              8BA9  syscall_ncpus
-            8BAF              8BAF  syscall_new_thread
-            8C0C              8C0C  new_thread_fail
-            8C0E              8C0E  syscall_sleep
-            8C2C              8C2C  sleep_loop
-            8C43              8C43  syscall_request_pmem_access
-            8C49              8C49  map_pmem
-            8C82              8C82  map_pmem_have_pgtbl
-            8C98              8C98  map_pmem_exit
-            8C9B              8C9B  map_pmem_fail
+            875C              875C  int_handler_hw03
+            8778              8778  int_handler_hw04
+            8794              8794  int_handler_hw05
+            87B0              87B0  int_handler_hw06
+            87CC              87CC  int_handler_hw07
+            87DC              87DC  int_handler_hw08
+            87F8              87F8  int_handler_hw09
+            8814              8814  int_handler_hw10
+            8830              8830  int_handler_hw11
+            884C              884C  int_handler_hw12
+            8868              8868  int_handler_hw13
+            8884              8884  int_handler_hw14
+            88A0              88A0  int_handler_hw15
+            88BC              88BC  int_handler_tg_dblflt
+            88D0              88D0  int_handler_tg_invtss
+            88EC              88EC  int_handler_spurious
+            88FC              88FC  int_handler_apicerr
+            890C              890C  wakeup
+            8918              8918  sysent
+            8968              8968  irq_print_msg
+            89B7              89B7  skip_cpumsg
+            89BC              89BC  reboot_on_alt_key
+            89BC              89BC  reboot_on_alt_key_loop
+            89C2              89C2  reboot
+            89D0              89D0  reboot_exit_pmode
+            89EE              89EE  reboot_idt
+            89F4              89F4  irq_types
+            89F8              89F8  irq_setup_table
+            8BF8              8BF8  syscall_klog
+            8C07              8C07  syscall_sipi_vector
+            8C0D              8C0D  syscall_ncpus
+            8C13              8C13  syscall_new_thread
+            8C70              8C70  new_thread_fail
+            8C72              8C72  syscall_sleep
+            8C90              8C90  sleep_loop
+            8CA7              8CA7  syscall_request_pmem_access
+            8CAD              8CAD  map_pmem
+            8CE6              8CE6  map_pmem_have_pgtbl
+            8CFC              8CFC  map_pmem_exit
+            8CFF              8CFF  map_pmem_fail
 
 ---- Section .data ------------------------------------------------------------
 
 Real              Virtual           Name
-            8CA0              8CA0  datastart
-            8CA0              8CA0  gdt
-            8DF0              8DF0  gdt_end
-            8DF0              8DF0  ldt1
-            8E08              8E08  ldt1_end
-            8E08              8E08  tss_f08
-            8E24              8E24  tss_f08_cr3
-            8E70              8E70  tss_f10
-            8E8C              8E8C  tss_f10_cr3
-            8ED8              8ED8  tss0
-            8EDC              8EDC  tss0_esp0
-            8EE0              8EE0  tss0_ss0
-            8EF4              8EF4  tss0_cr3
-            8EF8              8EF8  tss0_eip
-            8F00              8F00  tss0_eax
-            8F10              8F10  tss0_esp
-            8F20              8F20  tss0_es
-            8F24              8F24  tss0_cs
-            8F28              8F28  tss0_ss
-            8F2C              8F2C  tss0_ds
-            8F38              8F38  tss0_ldt
-            8F40              8F40  tss0_end
-            8F40              8F40  tss1
-            8F44              8F44  tss1_esp0
-            8F5C              8F5C  tss1_cr3
-            8F60              8F60  tss1_eip
-            8FA8              8FA8  gdtr
-            8FAE              8FAE  idtr
-            8FB0              8FB0  idtr_addr
-            8FB4              8FB4  ncpus
-            8FB8              8FB8  next_free_page
-            8FBC              8FBC  sleepers
-            8FC4              8FC4  pgdirp
-            8FC8              8FC8  pgtb0p
-            8FCC              8FCC  pgtb1p
-            8FD0              8FD0  enabled_lapic
-            8FD1              8FD1  dbgwall
+            8D10              8D10  datastart
+            8D10              8D10  gdt
+            8E60              8E60  gdt_end
+            8E60              8E60  ldt1
+            8E78              8E78  ldt1_end
+            8E78              8E78  tss_f08
+            8E94              8E94  tss_f08_cr3
+            8EE0              8EE0  tss_f10
+            8EFC              8EFC  tss_f10_cr3
+            8F48              8F48  tss0
+            8F4C              8F4C  tss0_esp0
+            8F50              8F50  tss0_ss0
+            8F64              8F64  tss0_cr3
+            8F68              8F68  tss0_eip
+            8F70              8F70  tss0_eax
+            8F80              8F80  tss0_esp
+            8F90              8F90  tss0_es
+            8F94              8F94  tss0_cs
+            8F98              8F98  tss0_ss
+            8F9C              8F9C  tss0_ds
+            8FA8              8FA8  tss0_ldt
+            8FB0              8FB0  tss0_end
+            8FB0              8FB0  tss1
+            8FB4              8FB4  tss1_esp0
+            8FCC              8FCC  tss1_cr3
+            8FD0              8FD0  tss1_eip
+            9018              9018  gdtr
+            901E              901E  idtr
+            9020              9020  idtr_addr
+            9024              9024  ncpus
+            9028              9028  next_free_page
+            902C              902C  sleepers
+            9034              9034  pgdirp
+            9038              9038  pgtb0p
+            903C              903C  pgtb1p
+            9040              9040  enabled_lapic
+            9041              9041  dbgwall
 
 ---- Section .fill ------------------------------------------------------------
 
 Real              Virtual           Name
-            8FE0              8FE0  fill
-            9000              9000  kend
+            9050              9050  fill
+            A000              A000  kend
 
