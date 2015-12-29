@@ -113,14 +113,29 @@ putx_putc :
     ret
 
 ; ----------------------------
-;    delay - wait for a few milliseconds
+;    wait for ipi to complete
 ;
-;    enter:
-;         eax - 
-;         ebx - 
 ;    exit:
-;         ebx - 
-;         ecx - destroyed
+;       all regs preserved (except flags)
+
+ipi_wait :
+    push edx
+    push eax
+
+ipi_delay_loop :
+    ; always delay one tick
+    mov  eax,0x2000         ; oz syscall - sleep 1 tick
+    mov  edx,1
+    int  0xff
+
+    mov  eax,[0xfee00300]               ; seen 0x0c0602, 0x0c4607
+    bt   eax,12                         ; watch delivery status
+    jc   ipi_delay_loop
+
+ipi_delay_done :
+    pop  eax
+    pop  edx
+    ret
 
 
 ; ----------------------------
@@ -226,7 +241,9 @@ no_x2apic :
     call putx               ; Athlon +1600 says 0x00040010
                             ; Bochs        says 0x00050010
                             ; real intel   says 0x00050014
+                            ; qemu         says 0x00050014
                             ; real amd     says 0x80050014
+                            ; recent intel says 0x01060015
 
 ;   mov  ecx,0x1b
 ;   rdmsr
@@ -236,38 +253,17 @@ no_x2apic :
     ; ---- restart other cpus (see swdev3a, sec 10.7, pg 484 / 10-45)
 
     push ebx
-    mov  dword [0xfee00300],0x000c4500  ; Physical, fixed, excluding self, INIT
 
-    mov  eax,0x2000         ; oz syscall opcode - sleep 1 tick
-    mov  edx,2
+    mov  dword [0xfee00300],0x000c0500  ; INIT (physical, fixed, excluding self)
+    call ipi_wait
+
+    mov  eax,0xfe00         ; oz syscall - get sipi_vector
     int  0xff
-
-    mov  eax,0xfe00         ; oz syscall opcode - get sipi_vector
-    int  0xff
-
     shr  eax,12
+
     or   eax,0xc4600        ; STARTUP
     mov  dword [0xfee00300],eax
-    push eax
-
-    mov  eax,0x2000         ; oz syscall opcode - sleep 1 tick
-    mov  edx,2
-    int  0xff
-
-    ; the docs all say kick them twice ...
-
-    pop  eax
-    mov  dword [0xfee00300],eax
-
-    mov  eax,0x2000         ; oz syscall opcode - sleep 1 tick
-    mov  edx,2
-    int  0xff
-
-;    mov  ecx,0x100000
-;ipi_loop2 :
-;    mov  eax,[0xfee00300]               ; 0xc0602
-;    and  eax,1 << 12                    ; watch delivery status
-;    loopz ipi_loop2
+    call ipi_wait
 
 ;   pop  ebx
 ;   mov  eax,ecx

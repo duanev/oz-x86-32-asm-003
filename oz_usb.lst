@@ -2367,7 +2367,7 @@
   2367                                  
   2368                                  ; Add larger tests here if the times expression turns up negative, to make
   2369                                  ; the kernel image size right, but your next problem will be that the boot
-  2370                                  ; loader will likely refuse to load all these sectors in one pass.
+  2370                                  ; loader will likely refuse to load all these sectors during stage2.
   2371                                  
   2372                                  section .fill
   2373                                  
