@@ -27,7 +27,7 @@ Disassembly of section .text.startup:
    b:	89 e5                	mov    %esp,%ebp
    d:	51                   	push   %ecx
    e:	83 ec 0c             	sub    $0xc,%esp
-  11:	6a 03                	push   $0x3
+  11:	6a 05                	push   $0x5
   13:	68 00 00 00 00       	push   $0x0
   18:	e8 fc ff ff ff       	call   19 <main+0x19>
   1d:	dd 1c 24             	fstpl  (%esp)

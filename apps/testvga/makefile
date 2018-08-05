@@ -1,6 +1,6 @@
 
-CFLAGS64 = -m64 -DMACHINE_WORD_SIZE=64
-CFLAGS32 = -m32 -DMACHINE_WORD_SIZE=32
+CFLAGS64 = -m64 -DMACHINE_WORD_SIZE=64 -fno-pic -fno-stack-protector
+CFLAGS32 = -m32 -DMACHINE_WORD_SIZE=32 -fno-pic -fno-stack-protector
 # use -O0 if debugging with the .lst file
 # (-O2 rearranges things pretty seriously for optimization)
 CFLAGS = -g -O0
@@ -9,7 +9,7 @@ OPTS = -Wall -Wextra -Werror
 
 all: testvga32 testvga32.lst
 
-testvga32: testvga.c ozapp.h testvga.ld
+testvga32: testvga.c ozapp.h testvga.ld makefile
 	gcc $(CFLAGS32) $(CFLAGS) -o testvga32.o -c testvga.c
 	ld -m elf_i386 --oformat binary -T testvga.ld -Map testvga32.map -o testvga32 testvga32.o
 

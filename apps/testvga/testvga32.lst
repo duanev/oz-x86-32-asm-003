@@ -139,7 +139,7 @@ sleep(int ticks)
 {
   82:	55                   	push   ebp
   83:	89 e5                	mov    ebp,esp
-    //   0x2700 = wait for n timer interrupts
+    //  0x2000 = wait for n timer interrupts
     syscall1(0x2000, ticks);
   85:	8b 45 08             	mov    eax,DWORD PTR [ebp+0x8]
   88:	50                   	push   eax
@@ -151,971 +151,986 @@ sleep(int ticks)
   97:	c9                   	leave  
   98:	c3                   	ret    
 
-00000099 <new_thread>:
+00000099 <pause>:
+
+void
+pause(void)
+{
+  99:	55                   	push   ebp
+  9a:	89 e5                	mov    ebp,esp
+    //  0x2001 pause : wait for an ipi
+    syscall0(0x2001);
+  9c:	68 01 20 00 00       	push   0x2001
+  a1:	e8 fc ff ff ff       	call   a2 <pause+0x9>
+  a6:	83 c4 04             	add    esp,0x4
+}
+  a9:	90                   	nop
+  aa:	c9                   	leave  
+  ab:	c3                   	ret    
+
+000000ac <resume>:
+
+void
+resume(void)
+{
+  ac:	55                   	push   ebp
+  ad:	89 e5                	mov    ebp,esp
+    //  0x2002 = resume all cores via ipi
+    syscall0(0x2002);
+  af:	68 02 20 00 00       	push   0x2002
+  b4:	e8 fc ff ff ff       	call   b5 <resume+0x9>
+  b9:	83 c4 04             	add    esp,0x4
+}
+  bc:	90                   	nop
+  bd:	c9                   	leave  
+  be:	c3                   	ret    
+
+000000bf <start_threads>:
+
+void
+start_threads(void)
+{
+  bf:	55                   	push   ebp
+  c0:	89 e5                	mov    ebp,esp
+    //  0x2003 = ipi all cores
+    syscall0(0x2003);
+  c2:	68 03 20 00 00       	push   0x2003
+  c7:	e8 fc ff ff ff       	call   c8 <start_threads+0x9>
+  cc:	83 c4 04             	add    esp,0x4
+}
+  cf:	90                   	nop
+  d0:	c9                   	leave  
+  d1:	c3                   	ret    
+
+000000d2 <new_thread>:
 // disrupting the app's 8k footprint)
 unsigned char stack[MAX_THREADS][STACK_SIZE] = {1};
 
 int
 new_thread(void (* func)(int), int thno)
 {
-  99:	55                   	push   ebp
-  9a:	89 e5                	mov    ebp,esp
-  9c:	83 ec 10             	sub    esp,0x10
+  d2:	55                   	push   ebp
+  d3:	89 e5                	mov    ebp,esp
+  d5:	83 ec 10             	sub    esp,0x10
     unsigned char * stackend = stack[MAX_THREADS - thno];
-  9f:	b8 10 00 00 00       	mov    eax,0x10
-  a4:	2b 45 0c             	sub    eax,DWORD PTR [ebp+0xc]
-  a7:	c1 e0 08             	shl    eax,0x8
-  aa:	05 00 00 00 00       	add    eax,0x0
-  af:	89 45 fc             	mov    DWORD PTR [ebp-0x4],eax
+  d8:	b8 20 00 00 00       	mov    eax,0x20
+  dd:	2b 45 0c             	sub    eax,DWORD PTR [ebp+0xc]
+  e0:	c1 e0 08             	shl    eax,0x8
+  e3:	05 00 00 00 00       	add    eax,0x0
+  e8:	89 45 fc             	mov    DWORD PTR [ebp-0x4],eax
 
     if (thno == 0)
-  b2:	83 7d 0c 00          	cmp    DWORD PTR [ebp+0xc],0x0
-  b6:	75 07                	jne    bf <new_thread+0x26>
+  eb:	83 7d 0c 00          	cmp    DWORD PTR [ebp+0xc],0x0
+  ef:	75 07                	jne    f8 <new_thread+0x26>
         return -1;
-  b8:	b8 ff ff ff ff       	mov    eax,0xffffffff
-  bd:	eb 29                	jmp    e8 <new_thread+0x4f>
+  f1:	b8 ff ff ff ff       	mov    eax,0xffffffff
+  f6:	eb 29                	jmp    121 <new_thread+0x4f>
 
     // push thno onto the new thread's stack
     stackend -= sizeof(thno);
-  bf:	83 6d fc 04          	sub    DWORD PTR [ebp-0x4],0x4
+  f8:	83 6d fc 04          	sub    DWORD PTR [ebp-0x4],0x4
     *((int *)stackend) = thno;
-  c3:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
-  c6:	8b 55 0c             	mov    edx,DWORD PTR [ebp+0xc]
-  c9:	89 10                	mov    DWORD PTR [eax],edx
+  fc:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+  ff:	8b 55 0c             	mov    edx,DWORD PTR [ebp+0xc]
+ 102:	89 10                	mov    DWORD PTR [eax],edx
     stackend -= sizeof(void *);     // account for a return ip
-  cb:	83 6d fc 04          	sub    DWORD PTR [ebp-0x4],0x4
+ 104:	83 6d fc 04          	sub    DWORD PTR [ebp-0x4],0x4
 
     //    0x2100 = new thread
     //      func = function address
     //  stackend = address of the end of a thread specific stack
     //      thno = thread number
     return syscall3(0x2100, (unsigned int)func, (unsigned int)stackend, thno);
-  cf:	8b 4d 0c             	mov    ecx,DWORD PTR [ebp+0xc]
-  d2:	8b 55 fc             	mov    edx,DWORD PTR [ebp-0x4]
-  d5:	8b 45 08             	mov    eax,DWORD PTR [ebp+0x8]
-  d8:	51                   	push   ecx
-  d9:	52                   	push   edx
-  da:	50                   	push   eax
-  db:	68 00 21 00 00       	push   0x2100
-  e0:	e8 fc ff ff ff       	call   e1 <new_thread+0x48>
-  e5:	83 c4 10             	add    esp,0x10
+ 108:	8b 4d 0c             	mov    ecx,DWORD PTR [ebp+0xc]
+ 10b:	8b 55 fc             	mov    edx,DWORD PTR [ebp-0x4]
+ 10e:	8b 45 08             	mov    eax,DWORD PTR [ebp+0x8]
+ 111:	51                   	push   ecx
+ 112:	52                   	push   edx
+ 113:	50                   	push   eax
+ 114:	68 00 21 00 00       	push   0x2100
+ 119:	e8 fc ff ff ff       	call   11a <new_thread+0x48>
+ 11e:	83 c4 10             	add    esp,0x10
 }
-  e8:	c9                   	leave  
-  e9:	c3                   	ret    
+ 121:	c9                   	leave  
+ 122:	c3                   	ret    
 
-000000ea <map_vga_memory>:
+00000123 <map_vga_memory>:
 
 #define VIDEORAM    ((short *)0xb8000)
 
 void
 map_vga_memory()
 {
-  ea:	55                   	push   ebp
-  eb:	89 e5                	mov    ebp,esp
+ 123:	55                   	push   ebp
+ 124:	89 e5                	mov    ebp,esp
     //   0x2700 = request mem access
     // videoram = base physical address
     //   0x2000 = length in bytes
     syscall2(0x2700, (unsigned int)VIDEORAM, 0x2000);
-  ed:	68 00 20 00 00       	push   0x2000
-  f2:	68 00 80 0b 00       	push   0xb8000
-  f7:	68 00 27 00 00       	push   0x2700
-  fc:	e8 fc ff ff ff       	call   fd <map_vga_memory+0x13>
- 101:	83 c4 0c             	add    esp,0xc
+ 126:	68 00 20 00 00       	push   0x2000
+ 12b:	68 00 80 0b 00       	push   0xb8000
+ 130:	68 00 27 00 00       	push   0x2700
+ 135:	e8 fc ff ff ff       	call   136 <map_vga_memory+0x13>
+ 13a:	83 c4 0c             	add    esp,0xc
 }
- 104:	90                   	nop
- 105:	c9                   	leave  
- 106:	c3                   	ret    
+ 13d:	90                   	nop
+ 13e:	c9                   	leave  
+ 13f:	c3                   	ret    
 
-00000107 <pokech>:
+00000140 <pokech>:
 #define YELLOW  14
 #define WHITE   15
 
 void
 pokech(int row, int column, int ch, int color)
 {
- 107:	55                   	push   ebp
- 108:	89 e5                	mov    ebp,esp
+ 140:	55                   	push   ebp
+ 141:	89 e5                	mov    ebp,esp
+ 143:	53                   	push   ebx
     VIDEORAM[WIDTH * (TOPLINE + row) + column] = (color << 8) | ch;
- 10a:	8b 45 08             	mov    eax,DWORD PTR [ebp+0x8]
- 10d:	8d 50 06             	lea    edx,[eax+0x6]
- 110:	89 d0                	mov    eax,edx
- 112:	c1 e0 02             	shl    eax,0x2
- 115:	01 d0                	add    eax,edx
- 117:	c1 e0 04             	shl    eax,0x4
- 11a:	89 c2                	mov    edx,eax
- 11c:	8b 45 0c             	mov    eax,DWORD PTR [ebp+0xc]
- 11f:	01 d0                	add    eax,edx
- 121:	01 c0                	add    eax,eax
- 123:	05 00 80 0b 00       	add    eax,0xb8000
- 128:	8b 55 14             	mov    edx,DWORD PTR [ebp+0x14]
- 12b:	c1 e2 08             	shl    edx,0x8
- 12e:	89 d1                	mov    ecx,edx
- 130:	8b 55 10             	mov    edx,DWORD PTR [ebp+0x10]
- 133:	09 ca                	or     edx,ecx
- 135:	66 89 10             	mov    WORD PTR [eax],dx
+ 144:	8b 45 14             	mov    eax,DWORD PTR [ebp+0x14]
+ 147:	c1 e0 08             	shl    eax,0x8
+ 14a:	89 c3                	mov    ebx,eax
+ 14c:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
+ 14f:	89 c1                	mov    ecx,eax
+ 151:	8b 45 08             	mov    eax,DWORD PTR [ebp+0x8]
+ 154:	8d 50 06             	lea    edx,[eax+0x6]
+ 157:	89 d0                	mov    eax,edx
+ 159:	c1 e0 02             	shl    eax,0x2
+ 15c:	01 d0                	add    eax,edx
+ 15e:	c1 e0 04             	shl    eax,0x4
+ 161:	89 c2                	mov    edx,eax
+ 163:	8b 45 0c             	mov    eax,DWORD PTR [ebp+0xc]
+ 166:	01 d0                	add    eax,edx
+ 168:	01 c0                	add    eax,eax
+ 16a:	05 00 80 0b 00       	add    eax,0xb8000
+ 16f:	09 cb                	or     ebx,ecx
+ 171:	89 da                	mov    edx,ebx
+ 173:	66 89 10             	mov    WORD PTR [eax],dx
+    //__sync_synchronize();
+    //asm volatile ("sfence" ::: "memory");
 }
- 138:	90                   	nop
- 139:	5d                   	pop    ebp
- 13a:	c3                   	ret    
+ 176:	90                   	nop
+ 177:	5b                   	pop    ebx
+ 178:	5d                   	pop    ebp
+ 179:	c3                   	ret    
 
-0000013b <peekch>:
+0000017a <peekch>:
 
 int
 peekch(int row, int column)
 {
- 13b:	55                   	push   ebp
- 13c:	89 e5                	mov    ebp,esp
+ 17a:	55                   	push   ebp
+ 17b:	89 e5                	mov    ebp,esp
     return VIDEORAM[WIDTH * (TOPLINE + row) + column];
- 13e:	8b 45 08             	mov    eax,DWORD PTR [ebp+0x8]
- 141:	8d 50 06             	lea    edx,[eax+0x6]
- 144:	89 d0                	mov    eax,edx
- 146:	c1 e0 02             	shl    eax,0x2
- 149:	01 d0                	add    eax,edx
- 14b:	c1 e0 04             	shl    eax,0x4
- 14e:	89 c2                	mov    edx,eax
- 150:	8b 45 0c             	mov    eax,DWORD PTR [ebp+0xc]
- 153:	01 d0                	add    eax,edx
- 155:	01 c0                	add    eax,eax
- 157:	05 00 80 0b 00       	add    eax,0xb8000
- 15c:	0f b7 00             	movzx  eax,WORD PTR [eax]
- 15f:	98                   	cwde   
+ 17d:	8b 45 08             	mov    eax,DWORD PTR [ebp+0x8]
+ 180:	8d 50 06             	lea    edx,[eax+0x6]
+ 183:	89 d0                	mov    eax,edx
+ 185:	c1 e0 02             	shl    eax,0x2
+ 188:	01 d0                	add    eax,edx
+ 18a:	c1 e0 04             	shl    eax,0x4
+ 18d:	89 c2                	mov    edx,eax
+ 18f:	8b 45 0c             	mov    eax,DWORD PTR [ebp+0xc]
+ 192:	01 d0                	add    eax,edx
+ 194:	01 c0                	add    eax,eax
+ 196:	05 00 80 0b 00       	add    eax,0xb8000
+ 19b:	0f b7 00             	movzx  eax,WORD PTR [eax]
+ 19e:	98                   	cwde   
 }
- 160:	5d                   	pop    ebp
- 161:	c3                   	ret    
+ 19f:	5d                   	pop    ebp
+ 1a0:	c3                   	ret    
 
-00000162 <pokehstr>:
+000001a1 <pokehstr>:
 
 void
 pokehstr(int row, int column, const char * str, int color)
 {
- 162:	55                   	push   ebp
- 163:	89 e5                	mov    ebp,esp
- 165:	83 ec 10             	sub    esp,0x10
+ 1a1:	55                   	push   ebp
+ 1a2:	89 e5                	mov    ebp,esp
+ 1a4:	83 ec 10             	sub    esp,0x10
     const char * p = str;
- 168:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
- 16b:	89 45 fc             	mov    DWORD PTR [ebp-0x4],eax
+ 1a7:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
+ 1aa:	89 45 fc             	mov    DWORD PTR [ebp-0x4],eax
     int i = 0;
- 16e:	c7 45 f8 00 00 00 00 	mov    DWORD PTR [ebp-0x8],0x0
+ 1ad:	c7 45 f8 00 00 00 00 	mov    DWORD PTR [ebp-0x8],0x0
 
     while (*p) {
- 175:	eb 29                	jmp    1a0 <pokehstr+0x3e>
+ 1b4:	eb 29                	jmp    1df <pokehstr+0x3e>
         pokech(row, column+i, *p, color);
- 177:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
- 17a:	0f b6 00             	movzx  eax,BYTE PTR [eax]
- 17d:	0f be c0             	movsx  eax,al
- 180:	8b 4d 0c             	mov    ecx,DWORD PTR [ebp+0xc]
- 183:	8b 55 f8             	mov    edx,DWORD PTR [ebp-0x8]
- 186:	01 ca                	add    edx,ecx
- 188:	ff 75 14             	push   DWORD PTR [ebp+0x14]
- 18b:	50                   	push   eax
- 18c:	52                   	push   edx
- 18d:	ff 75 08             	push   DWORD PTR [ebp+0x8]
- 190:	e8 fc ff ff ff       	call   191 <pokehstr+0x2f>
- 195:	83 c4 10             	add    esp,0x10
+ 1b6:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+ 1b9:	0f b6 00             	movzx  eax,BYTE PTR [eax]
+ 1bc:	0f be c0             	movsx  eax,al
+ 1bf:	8b 4d 0c             	mov    ecx,DWORD PTR [ebp+0xc]
+ 1c2:	8b 55 f8             	mov    edx,DWORD PTR [ebp-0x8]
+ 1c5:	01 ca                	add    edx,ecx
+ 1c7:	ff 75 14             	push   DWORD PTR [ebp+0x14]
+ 1ca:	50                   	push   eax
+ 1cb:	52                   	push   edx
+ 1cc:	ff 75 08             	push   DWORD PTR [ebp+0x8]
+ 1cf:	e8 fc ff ff ff       	call   1d0 <pokehstr+0x2f>
+ 1d4:	83 c4 10             	add    esp,0x10
         i++;
- 198:	83 45 f8 01          	add    DWORD PTR [ebp-0x8],0x1
+ 1d7:	83 45 f8 01          	add    DWORD PTR [ebp-0x8],0x1
         p++;
- 19c:	83 45 fc 01          	add    DWORD PTR [ebp-0x4],0x1
-pokehstr(int row, int column, const char * str, int color)
-{
-    const char * p = str;
-    int i = 0;
-
+ 1db:	83 45 fc 01          	add    DWORD PTR [ebp-0x4],0x1
     while (*p) {
- 1a0:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
- 1a3:	0f b6 00             	movzx  eax,BYTE PTR [eax]
- 1a6:	84 c0                	test   al,al
- 1a8:	75 cd                	jne    177 <pokehstr+0x15>
-        pokech(row, column+i, *p, color);
-        i++;
-        p++;
+ 1df:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+ 1e2:	0f b6 00             	movzx  eax,BYTE PTR [eax]
+ 1e5:	84 c0                	test   al,al
+ 1e7:	75 cd                	jne    1b6 <pokehstr+0x15>
     }
 }
- 1aa:	90                   	nop
- 1ab:	c9                   	leave  
- 1ac:	c3                   	ret    
+ 1e9:	90                   	nop
+ 1ea:	c9                   	leave  
+ 1eb:	c3                   	ret    
 
-000001ad <pokehint>:
+000001ec <pokehint>:
 
 int
 pokehint(int row, int column, int n, int color)
 {
- 1ad:	55                   	push   ebp
- 1ae:	89 e5                	mov    ebp,esp
- 1b0:	83 ec 10             	sub    esp,0x10
+ 1ec:	55                   	push   ebp
+ 1ed:	89 e5                	mov    ebp,esp
+ 1ef:	83 ec 10             	sub    esp,0x10
     int i = 1;
- 1b3:	c7 45 fc 01 00 00 00 	mov    DWORD PTR [ebp-0x4],0x1
+ 1f2:	c7 45 fc 01 00 00 00 	mov    DWORD PTR [ebp-0x4],0x1
     if (n > 99) {
- 1ba:	83 7d 10 63          	cmp    DWORD PTR [ebp+0x10],0x63
- 1be:	7e 59                	jle    219 <pokehint+0x6c>
+ 1f9:	83 7d 10 63          	cmp    DWORD PTR [ebp+0x10],0x63
+ 1fd:	7e 59                	jle    258 <pokehint+0x6c>
         pokech(row, column++, '0' + n/100, YELLOW);
- 1c0:	8b 4d 10             	mov    ecx,DWORD PTR [ebp+0x10]
- 1c3:	ba 1f 85 eb 51       	mov    edx,0x51eb851f
- 1c8:	89 c8                	mov    eax,ecx
- 1ca:	f7 ea                	imul   edx
- 1cc:	c1 fa 05             	sar    edx,0x5
- 1cf:	89 c8                	mov    eax,ecx
- 1d1:	c1 f8 1f             	sar    eax,0x1f
- 1d4:	29 c2                	sub    edx,eax
- 1d6:	89 d0                	mov    eax,edx
- 1d8:	8d 48 30             	lea    ecx,[eax+0x30]
- 1db:	8b 45 0c             	mov    eax,DWORD PTR [ebp+0xc]
- 1de:	8d 50 01             	lea    edx,[eax+0x1]
- 1e1:	89 55 0c             	mov    DWORD PTR [ebp+0xc],edx
- 1e4:	6a 0e                	push   0xe
- 1e6:	51                   	push   ecx
- 1e7:	50                   	push   eax
- 1e8:	ff 75 08             	push   DWORD PTR [ebp+0x8]
- 1eb:	e8 fc ff ff ff       	call   1ec <pokehint+0x3f>
- 1f0:	83 c4 10             	add    esp,0x10
+ 1ff:	8b 4d 10             	mov    ecx,DWORD PTR [ebp+0x10]
+ 202:	ba 1f 85 eb 51       	mov    edx,0x51eb851f
+ 207:	89 c8                	mov    eax,ecx
+ 209:	f7 ea                	imul   edx
+ 20b:	c1 fa 05             	sar    edx,0x5
+ 20e:	89 c8                	mov    eax,ecx
+ 210:	c1 f8 1f             	sar    eax,0x1f
+ 213:	29 c2                	sub    edx,eax
+ 215:	89 d0                	mov    eax,edx
+ 217:	8d 48 30             	lea    ecx,[eax+0x30]
+ 21a:	8b 45 0c             	mov    eax,DWORD PTR [ebp+0xc]
+ 21d:	8d 50 01             	lea    edx,[eax+0x1]
+ 220:	89 55 0c             	mov    DWORD PTR [ebp+0xc],edx
+ 223:	6a 0e                	push   0xe
+ 225:	51                   	push   ecx
+ 226:	50                   	push   eax
+ 227:	ff 75 08             	push   DWORD PTR [ebp+0x8]
+ 22a:	e8 fc ff ff ff       	call   22b <pokehint+0x3f>
+ 22f:	83 c4 10             	add    esp,0x10
         n %= 100;
- 1f3:	8b 4d 10             	mov    ecx,DWORD PTR [ebp+0x10]
- 1f6:	ba 1f 85 eb 51       	mov    edx,0x51eb851f
- 1fb:	89 c8                	mov    eax,ecx
- 1fd:	f7 ea                	imul   edx
- 1ff:	c1 fa 05             	sar    edx,0x5
- 202:	89 c8                	mov    eax,ecx
- 204:	c1 f8 1f             	sar    eax,0x1f
- 207:	29 c2                	sub    edx,eax
- 209:	89 d0                	mov    eax,edx
- 20b:	6b c0 64             	imul   eax,eax,0x64
- 20e:	29 c1                	sub    ecx,eax
- 210:	89 c8                	mov    eax,ecx
- 212:	89 45 10             	mov    DWORD PTR [ebp+0x10],eax
+ 232:	8b 4d 10             	mov    ecx,DWORD PTR [ebp+0x10]
+ 235:	ba 1f 85 eb 51       	mov    edx,0x51eb851f
+ 23a:	89 c8                	mov    eax,ecx
+ 23c:	f7 ea                	imul   edx
+ 23e:	c1 fa 05             	sar    edx,0x5
+ 241:	89 c8                	mov    eax,ecx
+ 243:	c1 f8 1f             	sar    eax,0x1f
+ 246:	29 c2                	sub    edx,eax
+ 248:	89 d0                	mov    eax,edx
+ 24a:	6b c0 64             	imul   eax,eax,0x64
+ 24d:	29 c1                	sub    ecx,eax
+ 24f:	89 c8                	mov    eax,ecx
+ 251:	89 45 10             	mov    DWORD PTR [ebp+0x10],eax
         i++;
- 215:	83 45 fc 01          	add    DWORD PTR [ebp-0x4],0x1
+ 254:	83 45 fc 01          	add    DWORD PTR [ebp-0x4],0x1
     }
     if (n > 9) {
- 219:	83 7d 10 09          	cmp    DWORD PTR [ebp+0x10],0x9
- 21d:	7e 5d                	jle    27c <pokehint+0xcf>
+ 258:	83 7d 10 09          	cmp    DWORD PTR [ebp+0x10],0x9
+ 25c:	7e 5d                	jle    2bb <pokehint+0xcf>
         pokech(row, column++, '0' + n/10, YELLOW);
- 21f:	8b 4d 10             	mov    ecx,DWORD PTR [ebp+0x10]
- 222:	ba 67 66 66 66       	mov    edx,0x66666667
- 227:	89 c8                	mov    eax,ecx
- 229:	f7 ea                	imul   edx
- 22b:	c1 fa 02             	sar    edx,0x2
- 22e:	89 c8                	mov    eax,ecx
- 230:	c1 f8 1f             	sar    eax,0x1f
- 233:	29 c2                	sub    edx,eax
- 235:	89 d0                	mov    eax,edx
- 237:	8d 48 30             	lea    ecx,[eax+0x30]
- 23a:	8b 45 0c             	mov    eax,DWORD PTR [ebp+0xc]
- 23d:	8d 50 01             	lea    edx,[eax+0x1]
- 240:	89 55 0c             	mov    DWORD PTR [ebp+0xc],edx
- 243:	6a 0e                	push   0xe
- 245:	51                   	push   ecx
- 246:	50                   	push   eax
- 247:	ff 75 08             	push   DWORD PTR [ebp+0x8]
- 24a:	e8 fc ff ff ff       	call   24b <pokehint+0x9e>
- 24f:	83 c4 10             	add    esp,0x10
+ 25e:	8b 4d 10             	mov    ecx,DWORD PTR [ebp+0x10]
+ 261:	ba 67 66 66 66       	mov    edx,0x66666667
+ 266:	89 c8                	mov    eax,ecx
+ 268:	f7 ea                	imul   edx
+ 26a:	c1 fa 02             	sar    edx,0x2
+ 26d:	89 c8                	mov    eax,ecx
+ 26f:	c1 f8 1f             	sar    eax,0x1f
+ 272:	29 c2                	sub    edx,eax
+ 274:	89 d0                	mov    eax,edx
+ 276:	8d 48 30             	lea    ecx,[eax+0x30]
+ 279:	8b 45 0c             	mov    eax,DWORD PTR [ebp+0xc]
+ 27c:	8d 50 01             	lea    edx,[eax+0x1]
+ 27f:	89 55 0c             	mov    DWORD PTR [ebp+0xc],edx
+ 282:	6a 0e                	push   0xe
+ 284:	51                   	push   ecx
+ 285:	50                   	push   eax
+ 286:	ff 75 08             	push   DWORD PTR [ebp+0x8]
+ 289:	e8 fc ff ff ff       	call   28a <pokehint+0x9e>
+ 28e:	83 c4 10             	add    esp,0x10
         n %= 10;
- 252:	8b 4d 10             	mov    ecx,DWORD PTR [ebp+0x10]
- 255:	ba 67 66 66 66       	mov    edx,0x66666667
- 25a:	89 c8                	mov    eax,ecx
- 25c:	f7 ea                	imul   edx
- 25e:	c1 fa 02             	sar    edx,0x2
- 261:	89 c8                	mov    eax,ecx
- 263:	c1 f8 1f             	sar    eax,0x1f
- 266:	29 c2                	sub    edx,eax
- 268:	89 d0                	mov    eax,edx
- 26a:	c1 e0 02             	shl    eax,0x2
- 26d:	01 d0                	add    eax,edx
- 26f:	01 c0                	add    eax,eax
- 271:	29 c1                	sub    ecx,eax
- 273:	89 c8                	mov    eax,ecx
- 275:	89 45 10             	mov    DWORD PTR [ebp+0x10],eax
+ 291:	8b 4d 10             	mov    ecx,DWORD PTR [ebp+0x10]
+ 294:	ba 67 66 66 66       	mov    edx,0x66666667
+ 299:	89 c8                	mov    eax,ecx
+ 29b:	f7 ea                	imul   edx
+ 29d:	c1 fa 02             	sar    edx,0x2
+ 2a0:	89 c8                	mov    eax,ecx
+ 2a2:	c1 f8 1f             	sar    eax,0x1f
+ 2a5:	29 c2                	sub    edx,eax
+ 2a7:	89 d0                	mov    eax,edx
+ 2a9:	c1 e0 02             	shl    eax,0x2
+ 2ac:	01 d0                	add    eax,edx
+ 2ae:	01 c0                	add    eax,eax
+ 2b0:	29 c1                	sub    ecx,eax
+ 2b2:	89 c8                	mov    eax,ecx
+ 2b4:	89 45 10             	mov    DWORD PTR [ebp+0x10],eax
         i++;
- 278:	83 45 fc 01          	add    DWORD PTR [ebp-0x4],0x1
+ 2b7:	83 45 fc 01          	add    DWORD PTR [ebp-0x4],0x1
     }
     pokech(row, column++, '0' + n, YELLOW);
- 27c:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
- 27f:	8d 48 30             	lea    ecx,[eax+0x30]
- 282:	8b 45 0c             	mov    eax,DWORD PTR [ebp+0xc]
- 285:	8d 50 01             	lea    edx,[eax+0x1]
- 288:	89 55 0c             	mov    DWORD PTR [ebp+0xc],edx
- 28b:	6a 0e                	push   0xe
- 28d:	51                   	push   ecx
- 28e:	50                   	push   eax
- 28f:	ff 75 08             	push   DWORD PTR [ebp+0x8]
- 292:	e8 fc ff ff ff       	call   293 <pokehint+0xe6>
- 297:	83 c4 10             	add    esp,0x10
+ 2bb:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
+ 2be:	8d 48 30             	lea    ecx,[eax+0x30]
+ 2c1:	8b 45 0c             	mov    eax,DWORD PTR [ebp+0xc]
+ 2c4:	8d 50 01             	lea    edx,[eax+0x1]
+ 2c7:	89 55 0c             	mov    DWORD PTR [ebp+0xc],edx
+ 2ca:	6a 0e                	push   0xe
+ 2cc:	51                   	push   ecx
+ 2cd:	50                   	push   eax
+ 2ce:	ff 75 08             	push   DWORD PTR [ebp+0x8]
+ 2d1:	e8 fc ff ff ff       	call   2d2 <pokehint+0xe6>
+ 2d6:	83 c4 10             	add    esp,0x10
     return i;
- 29a:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+ 2d9:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
 }
- 29d:	c9                   	leave  
- 29e:	c3                   	ret    
+ 2dc:	c9                   	leave  
+ 2dd:	c3                   	ret    
 
-0000029f <pokevstr>:
+000002de <pokevstr>:
 
 void
 pokevstr(int row, int column, const char * str, int color)
 {
- 29f:	55                   	push   ebp
- 2a0:	89 e5                	mov    ebp,esp
- 2a2:	83 ec 10             	sub    esp,0x10
+ 2de:	55                   	push   ebp
+ 2df:	89 e5                	mov    ebp,esp
+ 2e1:	83 ec 10             	sub    esp,0x10
     const char * p = str;
- 2a5:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
- 2a8:	89 45 fc             	mov    DWORD PTR [ebp-0x4],eax
+ 2e4:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
+ 2e7:	89 45 fc             	mov    DWORD PTR [ebp-0x4],eax
     int i = 0;
- 2ab:	c7 45 f8 00 00 00 00 	mov    DWORD PTR [ebp-0x8],0x0
+ 2ea:	c7 45 f8 00 00 00 00 	mov    DWORD PTR [ebp-0x8],0x0
 
     while (*p) {
- 2b2:	eb 29                	jmp    2dd <pokevstr+0x3e>
+ 2f1:	eb 29                	jmp    31c <pokevstr+0x3e>
         pokech(row+i, column, *p, color);
- 2b4:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
- 2b7:	0f b6 00             	movzx  eax,BYTE PTR [eax]
- 2ba:	0f be c0             	movsx  eax,al
- 2bd:	8b 4d 08             	mov    ecx,DWORD PTR [ebp+0x8]
- 2c0:	8b 55 f8             	mov    edx,DWORD PTR [ebp-0x8]
- 2c3:	01 ca                	add    edx,ecx
- 2c5:	ff 75 14             	push   DWORD PTR [ebp+0x14]
- 2c8:	50                   	push   eax
- 2c9:	ff 75 0c             	push   DWORD PTR [ebp+0xc]
- 2cc:	52                   	push   edx
- 2cd:	e8 fc ff ff ff       	call   2ce <pokevstr+0x2f>
- 2d2:	83 c4 10             	add    esp,0x10
+ 2f3:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+ 2f6:	0f b6 00             	movzx  eax,BYTE PTR [eax]
+ 2f9:	0f be c0             	movsx  eax,al
+ 2fc:	8b 4d 08             	mov    ecx,DWORD PTR [ebp+0x8]
+ 2ff:	8b 55 f8             	mov    edx,DWORD PTR [ebp-0x8]
+ 302:	01 ca                	add    edx,ecx
+ 304:	ff 75 14             	push   DWORD PTR [ebp+0x14]
+ 307:	50                   	push   eax
+ 308:	ff 75 0c             	push   DWORD PTR [ebp+0xc]
+ 30b:	52                   	push   edx
+ 30c:	e8 fc ff ff ff       	call   30d <pokevstr+0x2f>
+ 311:	83 c4 10             	add    esp,0x10
         i++;
- 2d5:	83 45 f8 01          	add    DWORD PTR [ebp-0x8],0x1
+ 314:	83 45 f8 01          	add    DWORD PTR [ebp-0x8],0x1
         p++;
- 2d9:	83 45 fc 01          	add    DWORD PTR [ebp-0x4],0x1
-pokevstr(int row, int column, const char * str, int color)
-{
-    const char * p = str;
-    int i = 0;
-
+ 318:	83 45 fc 01          	add    DWORD PTR [ebp-0x4],0x1
     while (*p) {
- 2dd:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
- 2e0:	0f b6 00             	movzx  eax,BYTE PTR [eax]
- 2e3:	84 c0                	test   al,al
- 2e5:	75 cd                	jne    2b4 <pokevstr+0x15>
-        pokech(row+i, column, *p, color);
-        i++;
-        p++;
+ 31c:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+ 31f:	0f b6 00             	movzx  eax,BYTE PTR [eax]
+ 322:	84 c0                	test   al,al
+ 324:	75 cd                	jne    2f3 <pokevstr+0x15>
     }
 }
- 2e7:	90                   	nop
- 2e8:	c9                   	leave  
- 2e9:	c3                   	ret    
+ 326:	90                   	nop
+ 327:	c9                   	leave  
+ 328:	c3                   	ret    
 
-000002ea <box>:
+00000329 <box>:
 
 void
 box(int toprow, int leftcolumn, int bottomrow, int rightcolumn, int color)
 {
- 2ea:	55                   	push   ebp
- 2eb:	89 e5                	mov    ebp,esp
- 2ed:	83 ec 10             	sub    esp,0x10
+ 329:	55                   	push   ebp
+ 32a:	89 e5                	mov    ebp,esp
+ 32c:	83 ec 10             	sub    esp,0x10
     int saved_rightcolumn = rightcolumn;
- 2f0:	8b 45 14             	mov    eax,DWORD PTR [ebp+0x14]
- 2f3:	89 45 fc             	mov    DWORD PTR [ebp-0x4],eax
+ 32f:	8b 45 14             	mov    eax,DWORD PTR [ebp+0x14]
+ 332:	89 45 fc             	mov    DWORD PTR [ebp-0x4],eax
 
     pokech(bottomrow, rightcolumn, 217, color);
- 2f6:	ff 75 18             	push   DWORD PTR [ebp+0x18]
- 2f9:	68 d9 00 00 00       	push   0xd9
- 2fe:	ff 75 14             	push   DWORD PTR [ebp+0x14]
- 301:	ff 75 10             	push   DWORD PTR [ebp+0x10]
- 304:	e8 fc ff ff ff       	call   305 <box+0x1b>
- 309:	83 c4 10             	add    esp,0x10
+ 335:	ff 75 18             	push   DWORD PTR [ebp+0x18]
+ 338:	68 d9 00 00 00       	push   0xd9
+ 33d:	ff 75 14             	push   DWORD PTR [ebp+0x14]
+ 340:	ff 75 10             	push   DWORD PTR [ebp+0x10]
+ 343:	e8 fc ff ff ff       	call   344 <box+0x1b>
+ 348:	83 c4 10             	add    esp,0x10
     pokech(toprow,    rightcolumn, 191, color);
- 30c:	ff 75 18             	push   DWORD PTR [ebp+0x18]
- 30f:	68 bf 00 00 00       	push   0xbf
- 314:	ff 75 14             	push   DWORD PTR [ebp+0x14]
- 317:	ff 75 08             	push   DWORD PTR [ebp+0x8]
- 31a:	e8 fc ff ff ff       	call   31b <box+0x31>
- 31f:	83 c4 10             	add    esp,0x10
+ 34b:	ff 75 18             	push   DWORD PTR [ebp+0x18]
+ 34e:	68 bf 00 00 00       	push   0xbf
+ 353:	ff 75 14             	push   DWORD PTR [ebp+0x14]
+ 356:	ff 75 08             	push   DWORD PTR [ebp+0x8]
+ 359:	e8 fc ff ff ff       	call   35a <box+0x31>
+ 35e:	83 c4 10             	add    esp,0x10
     pokech(bottomrow, leftcolumn,  192, color);
- 322:	ff 75 18             	push   DWORD PTR [ebp+0x18]
- 325:	68 c0 00 00 00       	push   0xc0
- 32a:	ff 75 0c             	push   DWORD PTR [ebp+0xc]
- 32d:	ff 75 10             	push   DWORD PTR [ebp+0x10]
- 330:	e8 fc ff ff ff       	call   331 <box+0x47>
- 335:	83 c4 10             	add    esp,0x10
+ 361:	ff 75 18             	push   DWORD PTR [ebp+0x18]
+ 364:	68 c0 00 00 00       	push   0xc0
+ 369:	ff 75 0c             	push   DWORD PTR [ebp+0xc]
+ 36c:	ff 75 10             	push   DWORD PTR [ebp+0x10]
+ 36f:	e8 fc ff ff ff       	call   370 <box+0x47>
+ 374:	83 c4 10             	add    esp,0x10
     pokech(toprow,    leftcolumn,  218, color);
- 338:	ff 75 18             	push   DWORD PTR [ebp+0x18]
- 33b:	68 da 00 00 00       	push   0xda
- 340:	ff 75 0c             	push   DWORD PTR [ebp+0xc]
- 343:	ff 75 08             	push   DWORD PTR [ebp+0x8]
- 346:	e8 fc ff ff ff       	call   347 <box+0x5d>
- 34b:	83 c4 10             	add    esp,0x10
+ 377:	ff 75 18             	push   DWORD PTR [ebp+0x18]
+ 37a:	68 da 00 00 00       	push   0xda
+ 37f:	ff 75 0c             	push   DWORD PTR [ebp+0xc]
+ 382:	ff 75 08             	push   DWORD PTR [ebp+0x8]
+ 385:	e8 fc ff ff ff       	call   386 <box+0x5d>
+ 38a:	83 c4 10             	add    esp,0x10
     while (--rightcolumn > leftcolumn) {
- 34e:	eb 2c                	jmp    37c <box+0x92>
+ 38d:	eb 2c                	jmp    3bb <box+0x92>
         pokech(bottomrow, rightcolumn, 196, color);
- 350:	ff 75 18             	push   DWORD PTR [ebp+0x18]
- 353:	68 c4 00 00 00       	push   0xc4
- 358:	ff 75 14             	push   DWORD PTR [ebp+0x14]
- 35b:	ff 75 10             	push   DWORD PTR [ebp+0x10]
- 35e:	e8 fc ff ff ff       	call   35f <box+0x75>
- 363:	83 c4 10             	add    esp,0x10
+ 38f:	ff 75 18             	push   DWORD PTR [ebp+0x18]
+ 392:	68 c4 00 00 00       	push   0xc4
+ 397:	ff 75 14             	push   DWORD PTR [ebp+0x14]
+ 39a:	ff 75 10             	push   DWORD PTR [ebp+0x10]
+ 39d:	e8 fc ff ff ff       	call   39e <box+0x75>
+ 3a2:	83 c4 10             	add    esp,0x10
         pokech(toprow,    rightcolumn, 196, color);
- 366:	ff 75 18             	push   DWORD PTR [ebp+0x18]
- 369:	68 c4 00 00 00       	push   0xc4
- 36e:	ff 75 14             	push   DWORD PTR [ebp+0x14]
- 371:	ff 75 08             	push   DWORD PTR [ebp+0x8]
- 374:	e8 fc ff ff ff       	call   375 <box+0x8b>
- 379:	83 c4 10             	add    esp,0x10
-
-    pokech(bottomrow, rightcolumn, 217, color);
-    pokech(toprow,    rightcolumn, 191, color);
-    pokech(bottomrow, leftcolumn,  192, color);
-    pokech(toprow,    leftcolumn,  218, color);
+ 3a5:	ff 75 18             	push   DWORD PTR [ebp+0x18]
+ 3a8:	68 c4 00 00 00       	push   0xc4
+ 3ad:	ff 75 14             	push   DWORD PTR [ebp+0x14]
+ 3b0:	ff 75 08             	push   DWORD PTR [ebp+0x8]
+ 3b3:	e8 fc ff ff ff       	call   3b4 <box+0x8b>
+ 3b8:	83 c4 10             	add    esp,0x10
     while (--rightcolumn > leftcolumn) {
- 37c:	83 6d 14 01          	sub    DWORD PTR [ebp+0x14],0x1
- 380:	8b 45 14             	mov    eax,DWORD PTR [ebp+0x14]
- 383:	3b 45 0c             	cmp    eax,DWORD PTR [ebp+0xc]
- 386:	7f c8                	jg     350 <box+0x66>
-        pokech(bottomrow, rightcolumn, 196, color);
-        pokech(toprow,    rightcolumn, 196, color);
+ 3bb:	83 6d 14 01          	sub    DWORD PTR [ebp+0x14],0x1
+ 3bf:	8b 45 14             	mov    eax,DWORD PTR [ebp+0x14]
+ 3c2:	3b 45 0c             	cmp    eax,DWORD PTR [ebp+0xc]
+ 3c5:	7f c8                	jg     38f <box+0x66>
     }
     rightcolumn = saved_rightcolumn;
- 388:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
- 38b:	89 45 14             	mov    DWORD PTR [ebp+0x14],eax
+ 3c7:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+ 3ca:	89 45 14             	mov    DWORD PTR [ebp+0x14],eax
     while (--bottomrow > toprow) {
- 38e:	eb 2c                	jmp    3bc <box+0xd2>
+ 3cd:	eb 2c                	jmp    3fb <box+0xd2>
         pokech(bottomrow, leftcolumn,  179, color);
- 390:	ff 75 18             	push   DWORD PTR [ebp+0x18]
- 393:	68 b3 00 00 00       	push   0xb3
- 398:	ff 75 0c             	push   DWORD PTR [ebp+0xc]
- 39b:	ff 75 10             	push   DWORD PTR [ebp+0x10]
- 39e:	e8 fc ff ff ff       	call   39f <box+0xb5>
- 3a3:	83 c4 10             	add    esp,0x10
+ 3cf:	ff 75 18             	push   DWORD PTR [ebp+0x18]
+ 3d2:	68 b3 00 00 00       	push   0xb3
+ 3d7:	ff 75 0c             	push   DWORD PTR [ebp+0xc]
+ 3da:	ff 75 10             	push   DWORD PTR [ebp+0x10]
+ 3dd:	e8 fc ff ff ff       	call   3de <box+0xb5>
+ 3e2:	83 c4 10             	add    esp,0x10
         pokech(bottomrow, rightcolumn, 179, color);
- 3a6:	ff 75 18             	push   DWORD PTR [ebp+0x18]
- 3a9:	68 b3 00 00 00       	push   0xb3
- 3ae:	ff 75 14             	push   DWORD PTR [ebp+0x14]
- 3b1:	ff 75 10             	push   DWORD PTR [ebp+0x10]
- 3b4:	e8 fc ff ff ff       	call   3b5 <box+0xcb>
- 3b9:	83 c4 10             	add    esp,0x10
-    while (--rightcolumn > leftcolumn) {
-        pokech(bottomrow, rightcolumn, 196, color);
-        pokech(toprow,    rightcolumn, 196, color);
-    }
-    rightcolumn = saved_rightcolumn;
+ 3e5:	ff 75 18             	push   DWORD PTR [ebp+0x18]
+ 3e8:	68 b3 00 00 00       	push   0xb3
+ 3ed:	ff 75 14             	push   DWORD PTR [ebp+0x14]
+ 3f0:	ff 75 10             	push   DWORD PTR [ebp+0x10]
+ 3f3:	e8 fc ff ff ff       	call   3f4 <box+0xcb>
+ 3f8:	83 c4 10             	add    esp,0x10
     while (--bottomrow > toprow) {
- 3bc:	83 6d 10 01          	sub    DWORD PTR [ebp+0x10],0x1
- 3c0:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
- 3c3:	3b 45 08             	cmp    eax,DWORD PTR [ebp+0x8]
- 3c6:	7f c8                	jg     390 <box+0xa6>
-        pokech(bottomrow, leftcolumn,  179, color);
-        pokech(bottomrow, rightcolumn, 179, color);
+ 3fb:	83 6d 10 01          	sub    DWORD PTR [ebp+0x10],0x1
+ 3ff:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
+ 402:	3b 45 08             	cmp    eax,DWORD PTR [ebp+0x8]
+ 405:	7f c8                	jg     3cf <box+0xa6>
     }
 }
- 3c8:	90                   	nop
- 3c9:	c9                   	leave  
- 3ca:	c3                   	ret    
+ 407:	90                   	nop
+ 408:	c9                   	leave  
+ 409:	c3                   	ret    
 
-000003cb <hcollision>:
+0000040a <hcollision>:
  * also changes the input arg 'dir' if there is a collision
  * in the primary direction.
  */
 int
 hcollision(int row, int startcolumn, int * dirp, int len)
 {
- 3cb:	55                   	push   ebp
- 3cc:	89 e5                	mov    ebp,esp
- 3ce:	83 ec 10             	sub    esp,0x10
+ 40a:	55                   	push   ebp
+ 40b:	89 e5                	mov    ebp,esp
+ 40d:	83 ec 10             	sub    esp,0x10
     int clear_to_left  = ((peekch(row, startcolumn-1) & 0xff) == ' ');
- 3d1:	8b 45 0c             	mov    eax,DWORD PTR [ebp+0xc]
- 3d4:	83 e8 01             	sub    eax,0x1
- 3d7:	50                   	push   eax
- 3d8:	ff 75 08             	push   DWORD PTR [ebp+0x8]
- 3db:	e8 fc ff ff ff       	call   3dc <hcollision+0x11>
- 3e0:	83 c4 08             	add    esp,0x8
- 3e3:	0f b6 c0             	movzx  eax,al
- 3e6:	83 f8 20             	cmp    eax,0x20
- 3e9:	0f 94 c0             	sete   al
- 3ec:	0f b6 c0             	movzx  eax,al
- 3ef:	89 45 fc             	mov    DWORD PTR [ebp-0x4],eax
+ 410:	8b 45 0c             	mov    eax,DWORD PTR [ebp+0xc]
+ 413:	83 e8 01             	sub    eax,0x1
+ 416:	50                   	push   eax
+ 417:	ff 75 08             	push   DWORD PTR [ebp+0x8]
+ 41a:	e8 fc ff ff ff       	call   41b <hcollision+0x11>
+ 41f:	83 c4 08             	add    esp,0x8
+ 422:	0f b6 c0             	movzx  eax,al
+ 425:	83 f8 20             	cmp    eax,0x20
+ 428:	0f 94 c0             	sete   al
+ 42b:	0f b6 c0             	movzx  eax,al
+ 42e:	89 45 fc             	mov    DWORD PTR [ebp-0x4],eax
     int clear_to_right = ((peekch(row, startcolumn+len-1) & 0xff) == ' ');
- 3f2:	8b 55 0c             	mov    edx,DWORD PTR [ebp+0xc]
- 3f5:	8b 45 14             	mov    eax,DWORD PTR [ebp+0x14]
- 3f8:	01 d0                	add    eax,edx
- 3fa:	83 e8 01             	sub    eax,0x1
- 3fd:	50                   	push   eax
- 3fe:	ff 75 08             	push   DWORD PTR [ebp+0x8]
- 401:	e8 fc ff ff ff       	call   402 <hcollision+0x37>
- 406:	83 c4 08             	add    esp,0x8
- 409:	0f b6 c0             	movzx  eax,al
- 40c:	83 f8 20             	cmp    eax,0x20
- 40f:	0f 94 c0             	sete   al
- 412:	0f b6 c0             	movzx  eax,al
- 415:	89 45 f8             	mov    DWORD PTR [ebp-0x8],eax
+ 431:	8b 55 0c             	mov    edx,DWORD PTR [ebp+0xc]
+ 434:	8b 45 14             	mov    eax,DWORD PTR [ebp+0x14]
+ 437:	01 d0                	add    eax,edx
+ 439:	83 e8 01             	sub    eax,0x1
+ 43c:	50                   	push   eax
+ 43d:	ff 75 08             	push   DWORD PTR [ebp+0x8]
+ 440:	e8 fc ff ff ff       	call   441 <hcollision+0x37>
+ 445:	83 c4 08             	add    esp,0x8
+ 448:	0f b6 c0             	movzx  eax,al
+ 44b:	83 f8 20             	cmp    eax,0x20
+ 44e:	0f 94 c0             	sete   al
+ 451:	0f b6 c0             	movzx  eax,al
+ 454:	89 45 f8             	mov    DWORD PTR [ebp-0x8],eax
 
     // are we good to continue?
     if ((*dirp > 0  &&  clear_to_right) || (*dirp < 0  &&  clear_to_left))
- 418:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
- 41b:	8b 00                	mov    eax,DWORD PTR [eax]
- 41d:	85 c0                	test   eax,eax
- 41f:	7e 06                	jle    427 <hcollision+0x5c>
- 421:	83 7d f8 00          	cmp    DWORD PTR [ebp-0x8],0x0
- 425:	75 0f                	jne    436 <hcollision+0x6b>
- 427:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
- 42a:	8b 00                	mov    eax,DWORD PTR [eax]
- 42c:	85 c0                	test   eax,eax
- 42e:	79 0d                	jns    43d <hcollision+0x72>
- 430:	83 7d fc 00          	cmp    DWORD PTR [ebp-0x4],0x0
- 434:	74 07                	je     43d <hcollision+0x72>
+ 457:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
+ 45a:	8b 00                	mov    eax,DWORD PTR [eax]
+ 45c:	85 c0                	test   eax,eax
+ 45e:	7e 06                	jle    466 <hcollision+0x5c>
+ 460:	83 7d f8 00          	cmp    DWORD PTR [ebp-0x8],0x0
+ 464:	75 0f                	jne    475 <hcollision+0x6b>
+ 466:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
+ 469:	8b 00                	mov    eax,DWORD PTR [eax]
+ 46b:	85 c0                	test   eax,eax
+ 46d:	79 0d                	jns    47c <hcollision+0x72>
+ 46f:	83 7d fc 00          	cmp    DWORD PTR [ebp-0x4],0x0
+ 473:	74 07                	je     47c <hcollision+0x72>
         return *dirp;
- 436:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
- 439:	8b 00                	mov    eax,DWORD PTR [eax]
- 43b:	eb 38                	jmp    475 <hcollision+0xaa>
+ 475:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
+ 478:	8b 00                	mov    eax,DWORD PTR [eax]
+ 47a:	eb 38                	jmp    4b4 <hcollision+0xaa>
     // else try the opposite direction
     *dirp = -(*dirp);
- 43d:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
- 440:	8b 00                	mov    eax,DWORD PTR [eax]
- 442:	f7 d8                	neg    eax
- 444:	89 c2                	mov    edx,eax
- 446:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
- 449:	89 10                	mov    DWORD PTR [eax],edx
+ 47c:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
+ 47f:	8b 00                	mov    eax,DWORD PTR [eax]
+ 481:	f7 d8                	neg    eax
+ 483:	89 c2                	mov    edx,eax
+ 485:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
+ 488:	89 10                	mov    DWORD PTR [eax],edx
     if ((*dirp > 0  &&  clear_to_right) || (*dirp < 0  &&  clear_to_left))
- 44b:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
- 44e:	8b 00                	mov    eax,DWORD PTR [eax]
- 450:	85 c0                	test   eax,eax
- 452:	7e 06                	jle    45a <hcollision+0x8f>
- 454:	83 7d f8 00          	cmp    DWORD PTR [ebp-0x8],0x0
- 458:	75 0f                	jne    469 <hcollision+0x9e>
- 45a:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
- 45d:	8b 00                	mov    eax,DWORD PTR [eax]
- 45f:	85 c0                	test   eax,eax
- 461:	79 0d                	jns    470 <hcollision+0xa5>
- 463:	83 7d fc 00          	cmp    DWORD PTR [ebp-0x4],0x0
- 467:	74 07                	je     470 <hcollision+0xa5>
+ 48a:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
+ 48d:	8b 00                	mov    eax,DWORD PTR [eax]
+ 48f:	85 c0                	test   eax,eax
+ 491:	7e 06                	jle    499 <hcollision+0x8f>
+ 493:	83 7d f8 00          	cmp    DWORD PTR [ebp-0x8],0x0
+ 497:	75 0f                	jne    4a8 <hcollision+0x9e>
+ 499:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
+ 49c:	8b 00                	mov    eax,DWORD PTR [eax]
+ 49e:	85 c0                	test   eax,eax
+ 4a0:	79 0d                	jns    4af <hcollision+0xa5>
+ 4a2:	83 7d fc 00          	cmp    DWORD PTR [ebp-0x4],0x0
+ 4a6:	74 07                	je     4af <hcollision+0xa5>
         return *dirp;
- 469:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
- 46c:	8b 00                	mov    eax,DWORD PTR [eax]
- 46e:	eb 05                	jmp    475 <hcollision+0xaa>
+ 4a8:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
+ 4ab:	8b 00                	mov    eax,DWORD PTR [eax]
+ 4ad:	eb 05                	jmp    4b4 <hcollision+0xaa>
     // completely blocked
     return 0;
- 470:	b8 00 00 00 00       	mov    eax,0x0
+ 4af:	b8 00 00 00 00       	mov    eax,0x0
 }
- 475:	c9                   	leave  
- 476:	c3                   	ret    
+ 4b4:	c9                   	leave  
+ 4b5:	c3                   	ret    
 
-00000477 <vcollision>:
+000004b6 <vcollision>:
 /*
  * check for a vertical collision
  */
 int
 vcollision(int startrow, int column, int * dirp, int len)
 {
- 477:	55                   	push   ebp
- 478:	89 e5                	mov    ebp,esp
- 47a:	83 ec 10             	sub    esp,0x10
+ 4b6:	55                   	push   ebp
+ 4b7:	89 e5                	mov    ebp,esp
+ 4b9:	83 ec 10             	sub    esp,0x10
     int clear_above = ((peekch(startrow-1, column) & 0xff) == ' ');
- 47d:	8b 45 08             	mov    eax,DWORD PTR [ebp+0x8]
- 480:	83 e8 01             	sub    eax,0x1
- 483:	ff 75 0c             	push   DWORD PTR [ebp+0xc]
- 486:	50                   	push   eax
- 487:	e8 fc ff ff ff       	call   488 <vcollision+0x11>
- 48c:	83 c4 08             	add    esp,0x8
- 48f:	0f b6 c0             	movzx  eax,al
- 492:	83 f8 20             	cmp    eax,0x20
- 495:	0f 94 c0             	sete   al
- 498:	0f b6 c0             	movzx  eax,al
- 49b:	89 45 fc             	mov    DWORD PTR [ebp-0x4],eax
+ 4bc:	8b 45 08             	mov    eax,DWORD PTR [ebp+0x8]
+ 4bf:	83 e8 01             	sub    eax,0x1
+ 4c2:	ff 75 0c             	push   DWORD PTR [ebp+0xc]
+ 4c5:	50                   	push   eax
+ 4c6:	e8 fc ff ff ff       	call   4c7 <vcollision+0x11>
+ 4cb:	83 c4 08             	add    esp,0x8
+ 4ce:	0f b6 c0             	movzx  eax,al
+ 4d1:	83 f8 20             	cmp    eax,0x20
+ 4d4:	0f 94 c0             	sete   al
+ 4d7:	0f b6 c0             	movzx  eax,al
+ 4da:	89 45 fc             	mov    DWORD PTR [ebp-0x4],eax
     int clear_below = ((peekch(startrow+len-1, column) & 0xff) == ' ');
- 49e:	8b 55 08             	mov    edx,DWORD PTR [ebp+0x8]
- 4a1:	8b 45 14             	mov    eax,DWORD PTR [ebp+0x14]
- 4a4:	01 d0                	add    eax,edx
- 4a6:	83 e8 01             	sub    eax,0x1
- 4a9:	ff 75 0c             	push   DWORD PTR [ebp+0xc]
- 4ac:	50                   	push   eax
- 4ad:	e8 fc ff ff ff       	call   4ae <vcollision+0x37>
- 4b2:	83 c4 08             	add    esp,0x8
- 4b5:	0f b6 c0             	movzx  eax,al
- 4b8:	83 f8 20             	cmp    eax,0x20
- 4bb:	0f 94 c0             	sete   al
- 4be:	0f b6 c0             	movzx  eax,al
- 4c1:	89 45 f8             	mov    DWORD PTR [ebp-0x8],eax
+ 4dd:	8b 55 08             	mov    edx,DWORD PTR [ebp+0x8]
+ 4e0:	8b 45 14             	mov    eax,DWORD PTR [ebp+0x14]
+ 4e3:	01 d0                	add    eax,edx
+ 4e5:	83 e8 01             	sub    eax,0x1
+ 4e8:	ff 75 0c             	push   DWORD PTR [ebp+0xc]
+ 4eb:	50                   	push   eax
+ 4ec:	e8 fc ff ff ff       	call   4ed <vcollision+0x37>
+ 4f1:	83 c4 08             	add    esp,0x8
+ 4f4:	0f b6 c0             	movzx  eax,al
+ 4f7:	83 f8 20             	cmp    eax,0x20
+ 4fa:	0f 94 c0             	sete   al
+ 4fd:	0f b6 c0             	movzx  eax,al
+ 500:	89 45 f8             	mov    DWORD PTR [ebp-0x8],eax
 
     // are we good to continue?
     if ((*dirp > 0  &&  clear_below) || (*dirp < 0  &&  clear_above))
- 4c4:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
- 4c7:	8b 00                	mov    eax,DWORD PTR [eax]
- 4c9:	85 c0                	test   eax,eax
- 4cb:	7e 06                	jle    4d3 <vcollision+0x5c>
- 4cd:	83 7d f8 00          	cmp    DWORD PTR [ebp-0x8],0x0
- 4d1:	75 0f                	jne    4e2 <vcollision+0x6b>
- 4d3:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
- 4d6:	8b 00                	mov    eax,DWORD PTR [eax]
- 4d8:	85 c0                	test   eax,eax
- 4da:	79 0d                	jns    4e9 <vcollision+0x72>
- 4dc:	83 7d fc 00          	cmp    DWORD PTR [ebp-0x4],0x0
- 4e0:	74 07                	je     4e9 <vcollision+0x72>
+ 503:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
+ 506:	8b 00                	mov    eax,DWORD PTR [eax]
+ 508:	85 c0                	test   eax,eax
+ 50a:	7e 06                	jle    512 <vcollision+0x5c>
+ 50c:	83 7d f8 00          	cmp    DWORD PTR [ebp-0x8],0x0
+ 510:	75 0f                	jne    521 <vcollision+0x6b>
+ 512:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
+ 515:	8b 00                	mov    eax,DWORD PTR [eax]
+ 517:	85 c0                	test   eax,eax
+ 519:	79 0d                	jns    528 <vcollision+0x72>
+ 51b:	83 7d fc 00          	cmp    DWORD PTR [ebp-0x4],0x0
+ 51f:	74 07                	je     528 <vcollision+0x72>
         return *dirp;
- 4e2:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
- 4e5:	8b 00                	mov    eax,DWORD PTR [eax]
- 4e7:	eb 38                	jmp    521 <vcollision+0xaa>
+ 521:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
+ 524:	8b 00                	mov    eax,DWORD PTR [eax]
+ 526:	eb 38                	jmp    560 <vcollision+0xaa>
     // else try the opposite direction
     *dirp = -(*dirp);
- 4e9:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
- 4ec:	8b 00                	mov    eax,DWORD PTR [eax]
- 4ee:	f7 d8                	neg    eax
- 4f0:	89 c2                	mov    edx,eax
- 4f2:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
- 4f5:	89 10                	mov    DWORD PTR [eax],edx
+ 528:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
+ 52b:	8b 00                	mov    eax,DWORD PTR [eax]
+ 52d:	f7 d8                	neg    eax
+ 52f:	89 c2                	mov    edx,eax
+ 531:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
+ 534:	89 10                	mov    DWORD PTR [eax],edx
     if ((*dirp > 0  &&  clear_below) || (*dirp < 0  &&  clear_above))
- 4f7:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
- 4fa:	8b 00                	mov    eax,DWORD PTR [eax]
- 4fc:	85 c0                	test   eax,eax
- 4fe:	7e 06                	jle    506 <vcollision+0x8f>
- 500:	83 7d f8 00          	cmp    DWORD PTR [ebp-0x8],0x0
- 504:	75 0f                	jne    515 <vcollision+0x9e>
- 506:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
- 509:	8b 00                	mov    eax,DWORD PTR [eax]
- 50b:	85 c0                	test   eax,eax
- 50d:	79 0d                	jns    51c <vcollision+0xa5>
- 50f:	83 7d fc 00          	cmp    DWORD PTR [ebp-0x4],0x0
- 513:	74 07                	je     51c <vcollision+0xa5>
+ 536:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
+ 539:	8b 00                	mov    eax,DWORD PTR [eax]
+ 53b:	85 c0                	test   eax,eax
+ 53d:	7e 06                	jle    545 <vcollision+0x8f>
+ 53f:	83 7d f8 00          	cmp    DWORD PTR [ebp-0x8],0x0
+ 543:	75 0f                	jne    554 <vcollision+0x9e>
+ 545:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
+ 548:	8b 00                	mov    eax,DWORD PTR [eax]
+ 54a:	85 c0                	test   eax,eax
+ 54c:	79 0d                	jns    55b <vcollision+0xa5>
+ 54e:	83 7d fc 00          	cmp    DWORD PTR [ebp-0x4],0x0
+ 552:	74 07                	je     55b <vcollision+0xa5>
         return *dirp;
- 515:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
- 518:	8b 00                	mov    eax,DWORD PTR [eax]
- 51a:	eb 05                	jmp    521 <vcollision+0xaa>
+ 554:	8b 45 10             	mov    eax,DWORD PTR [ebp+0x10]
+ 557:	8b 00                	mov    eax,DWORD PTR [eax]
+ 559:	eb 05                	jmp    560 <vcollision+0xaa>
     // completely blocked
     return 0;
- 51c:	b8 00 00 00 00       	mov    eax,0x0
+ 55b:	b8 00 00 00 00       	mov    eax,0x0
 }
- 521:	c9                   	leave  
- 522:	c3                   	ret    
+ 560:	c9                   	leave  
+ 561:	c3                   	ret    
 
-00000523 <hthread>:
+00000562 <hthread>:
 
 #define memcpy __builtin_memcpy
 
 void
 hthread(int thno)
 {
- 523:	55                   	push   ebp
- 524:	89 e5                	mov    ebp,esp
- 526:	83 ec 20             	sub    esp,0x20
+ 562:	55                   	push   ebp
+ 563:	89 e5                	mov    ebp,esp
+ 565:	83 ec 20             	sub    esp,0x20
     char blip[8];
-    int row = 2 * thno + 4;
- 529:	8b 45 08             	mov    eax,DWORD PTR [ebp+0x8]
- 52c:	83 c0 02             	add    eax,0x2
- 52f:	01 c0                	add    eax,eax
- 531:	89 45 f8             	mov    DWORD PTR [ebp-0x8],eax
+    int row = thno / 2 + 2;
+ 568:	8b 45 08             	mov    eax,DWORD PTR [ebp+0x8]
+ 56b:	89 c2                	mov    edx,eax
+ 56d:	c1 ea 1f             	shr    edx,0x1f
+ 570:	01 d0                	add    eax,edx
+ 572:	d1 f8                	sar    eax,1
+ 574:	83 c0 02             	add    eax,0x2
+ 577:	89 45 f8             	mov    DWORD PTR [ebp-0x8],eax
     int xpos = 1;
- 534:	c7 45 fc 01 00 00 00 	mov    DWORD PTR [ebp-0x4],0x1
+ 57a:	c7 45 fc 01 00 00 00 	mov    DWORD PTR [ebp-0x4],0x1
     int xdir = 1;
- 53b:	c7 45 e8 01 00 00 00 	mov    DWORD PTR [ebp-0x18],0x1
+ 581:	c7 45 e8 01 00 00 00 	mov    DWORD PTR [ebp-0x18],0x1
     int mdir;
 
     memcpy(blip, hblip, sizeof(hblip)+1);   // copy hblip to the local stack
- 542:	8d 45 ec             	lea    eax,[ebp-0x14]
- 545:	8b 15 00 00 00 00    	mov    edx,DWORD PTR ds:0x0
- 54b:	89 10                	mov    DWORD PTR [eax],edx
- 54d:	0f b7 15 04 00 00 00 	movzx  edx,WORD PTR ds:0x4
- 554:	66 89 50 04          	mov    WORD PTR [eax+0x4],dx
- 558:	0f b6 15 06 00 00 00 	movzx  edx,BYTE PTR ds:0x6
- 55f:	88 50 06             	mov    BYTE PTR [eax+0x6],dl
+ 588:	8d 45 ec             	lea    eax,[ebp-0x14]
+ 58b:	8b 15 00 00 00 00    	mov    edx,DWORD PTR ds:0x0
+ 591:	89 10                	mov    DWORD PTR [eax],edx
+ 593:	0f b7 15 04 00 00 00 	movzx  edx,WORD PTR ds:0x4
+ 59a:	66 89 50 04          	mov    WORD PTR [eax+0x4],dx
+ 59e:	0f b6 15 06 00 00 00 	movzx  edx,BYTE PTR ds:0x6
+ 5a5:	88 50 06             	mov    BYTE PTR [eax+0x6],dl
     blip[2] = '0' + thno;                   // make our blip unique
- 562:	8b 45 08             	mov    eax,DWORD PTR [ebp+0x8]
- 565:	83 c0 30             	add    eax,0x30
- 568:	88 45 ee             	mov    BYTE PTR [ebp-0x12],al
+ 5a8:	8b 45 08             	mov    eax,DWORD PTR [ebp+0x8]
+ 5ab:	83 c0 30             	add    eax,0x30
+ 5ae:	88 45 ee             	mov    BYTE PTR [ebp-0x12],al
 
     while (1) {
         // write new blip
         pokehstr(row, xpos, blip, CYAN);
- 56b:	6a 0b                	push   0xb
- 56d:	8d 45 ec             	lea    eax,[ebp-0x14]
- 570:	50                   	push   eax
- 571:	ff 75 fc             	push   DWORD PTR [ebp-0x4]
- 574:	ff 75 f8             	push   DWORD PTR [ebp-0x8]
- 577:	e8 fc ff ff ff       	call   578 <hthread+0x55>
- 57c:	83 c4 10             	add    esp,0x10
-        sleep(1);
- 57f:	6a 01                	push   0x1
- 581:	e8 fc ff ff ff       	call   582 <hthread+0x5f>
- 586:	83 c4 04             	add    esp,0x4
+ 5b1:	6a 0b                	push   0xb
+ 5b3:	8d 45 ec             	lea    eax,[ebp-0x14]
+ 5b6:	50                   	push   eax
+ 5b7:	ff 75 fc             	push   DWORD PTR [ebp-0x4]
+ 5ba:	ff 75 f8             	push   DWORD PTR [ebp-0x8]
+ 5bd:	e8 fc ff ff ff       	call   5be <hthread+0x5c>
+ 5c2:	83 c4 10             	add    esp,0x10
+
+        if (thno == 0) {
+ 5c5:	83 7d 08 00          	cmp    DWORD PTR [ebp+0x8],0x0
+ 5c9:	75 11                	jne    5dc <hthread+0x7a>
+            sleep(1);                       // the control threads sleeps
+ 5cb:	6a 01                	push   0x1
+ 5cd:	e8 fc ff ff ff       	call   5ce <hthread+0x6c>
+ 5d2:	83 c4 04             	add    esp,0x4
+            resume();
+ 5d5:	e8 fc ff ff ff       	call   5d6 <hthread+0x74>
+ 5da:	eb 05                	jmp    5e1 <hthread+0x7f>
+        } else {
+            pause();                        // other threads wait
+ 5dc:	e8 fc ff ff ff       	call   5dd <hthread+0x7b>
+        }
 
         mdir = hcollision(row, xpos, &xdir, sizeof(hblip));
- 589:	6a 06                	push   0x6
- 58b:	8d 45 e8             	lea    eax,[ebp-0x18]
- 58e:	50                   	push   eax
- 58f:	ff 75 fc             	push   DWORD PTR [ebp-0x4]
- 592:	ff 75 f8             	push   DWORD PTR [ebp-0x8]
- 595:	e8 fc ff ff ff       	call   596 <hthread+0x73>
- 59a:	83 c4 10             	add    esp,0x10
- 59d:	89 45 f4             	mov    DWORD PTR [ebp-0xc],eax
+ 5e1:	6a 06                	push   0x6
+ 5e3:	8d 45 e8             	lea    eax,[ebp-0x18]
+ 5e6:	50                   	push   eax
+ 5e7:	ff 75 fc             	push   DWORD PTR [ebp-0x4]
+ 5ea:	ff 75 f8             	push   DWORD PTR [ebp-0x8]
+ 5ed:	e8 fc ff ff ff       	call   5ee <hthread+0x8c>
+ 5f2:	83 c4 10             	add    esp,0x10
+ 5f5:	89 45 f4             	mov    DWORD PTR [ebp-0xc],eax
 
         // blank part of old blip
         if (mdir > 0)
- 5a0:	83 7d f4 00          	cmp    DWORD PTR [ebp-0xc],0x0
- 5a4:	7e 14                	jle    5ba <hthread+0x97>
+ 5f8:	83 7d f4 00          	cmp    DWORD PTR [ebp-0xc],0x0
+ 5fc:	7e 14                	jle    612 <hthread+0xb0>
             pokech(row, xpos, ' ', BLACK);
- 5a6:	6a 00                	push   0x0
- 5a8:	6a 20                	push   0x20
- 5aa:	ff 75 fc             	push   DWORD PTR [ebp-0x4]
- 5ad:	ff 75 f8             	push   DWORD PTR [ebp-0x8]
- 5b0:	e8 fc ff ff ff       	call   5b1 <hthread+0x8e>
- 5b5:	83 c4 10             	add    esp,0x10
- 5b8:	eb 1c                	jmp    5d6 <hthread+0xb3>
+ 5fe:	6a 00                	push   0x0
+ 600:	6a 20                	push   0x20
+ 602:	ff 75 fc             	push   DWORD PTR [ebp-0x4]
+ 605:	ff 75 f8             	push   DWORD PTR [ebp-0x8]
+ 608:	e8 fc ff ff ff       	call   609 <hthread+0xa7>
+ 60d:	83 c4 10             	add    esp,0x10
+ 610:	eb 1c                	jmp    62e <hthread+0xcc>
         else if (mdir < 0)
- 5ba:	83 7d f4 00          	cmp    DWORD PTR [ebp-0xc],0x0
- 5be:	79 16                	jns    5d6 <hthread+0xb3>
+ 612:	83 7d f4 00          	cmp    DWORD PTR [ebp-0xc],0x0
+ 616:	79 16                	jns    62e <hthread+0xcc>
             pokech(row, xpos+sizeof(hblip)-2, ' ', BLACK);
- 5c0:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
- 5c3:	83 c0 04             	add    eax,0x4
- 5c6:	6a 00                	push   0x0
- 5c8:	6a 20                	push   0x20
- 5ca:	50                   	push   eax
- 5cb:	ff 75 f8             	push   DWORD PTR [ebp-0x8]
- 5ce:	e8 fc ff ff ff       	call   5cf <hthread+0xac>
- 5d3:	83 c4 10             	add    esp,0x10
+ 618:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+ 61b:	83 c0 04             	add    eax,0x4
+ 61e:	6a 00                	push   0x0
+ 620:	6a 20                	push   0x20
+ 622:	50                   	push   eax
+ 623:	ff 75 f8             	push   DWORD PTR [ebp-0x8]
+ 626:	e8 fc ff ff ff       	call   627 <hthread+0xc5>
+ 62b:	83 c4 10             	add    esp,0x10
 
         xpos += mdir;
- 5d6:	8b 45 f4             	mov    eax,DWORD PTR [ebp-0xc]
- 5d9:	01 45 fc             	add    DWORD PTR [ebp-0x4],eax
-    }
- 5dc:	eb 8d                	jmp    56b <hthread+0x48>
+ 62e:	8b 45 f4             	mov    eax,DWORD PTR [ebp-0xc]
+ 631:	01 45 fc             	add    DWORD PTR [ebp-0x4],eax
+        pokehstr(row, xpos, blip, CYAN);
+ 634:	e9 78 ff ff ff       	jmp    5b1 <hthread+0x4f>
 
-000005de <vthread>:
+00000639 <vthread>:
+    }
 }
 
 void
 vthread(int thno)
 {
- 5de:	55                   	push   ebp
- 5df:	89 e5                	mov    ebp,esp
- 5e1:	83 ec 20             	sub    esp,0x20
+ 639:	55                   	push   ebp
+ 63a:	89 e5                	mov    ebp,esp
+ 63c:	83 ec 20             	sub    esp,0x20
     char blip[8];
-    int column = 4 * thno + 20;
- 5e4:	8b 45 08             	mov    eax,DWORD PTR [ebp+0x8]
- 5e7:	83 c0 05             	add    eax,0x5
- 5ea:	c1 e0 02             	shl    eax,0x2
- 5ed:	89 45 f8             	mov    DWORD PTR [ebp-0x8],eax
+    int column = thno * 2 + 20;
+ 63f:	8b 45 08             	mov    eax,DWORD PTR [ebp+0x8]
+ 642:	83 c0 0a             	add    eax,0xa
+ 645:	01 c0                	add    eax,eax
+ 647:	89 45 f8             	mov    DWORD PTR [ebp-0x8],eax
     int ypos = 1;
- 5f0:	c7 45 fc 01 00 00 00 	mov    DWORD PTR [ebp-0x4],0x1
+ 64a:	c7 45 fc 01 00 00 00 	mov    DWORD PTR [ebp-0x4],0x1
     int ydir = 1;
- 5f7:	c7 45 e8 01 00 00 00 	mov    DWORD PTR [ebp-0x18],0x1
+ 651:	c7 45 e8 01 00 00 00 	mov    DWORD PTR [ebp-0x18],0x1
     int mdir;
 
     memcpy(blip, vblip, sizeof(vblip)+1);   // copy vblip to the local stack
- 5fe:	8d 45 ec             	lea    eax,[ebp-0x14]
- 601:	8b 15 00 00 00 00    	mov    edx,DWORD PTR ds:0x0
- 607:	89 10                	mov    DWORD PTR [eax],edx
- 609:	0f b6 15 04 00 00 00 	movzx  edx,BYTE PTR ds:0x4
- 610:	88 50 04             	mov    BYTE PTR [eax+0x4],dl
+ 658:	8d 45 ec             	lea    eax,[ebp-0x14]
+ 65b:	8b 15 00 00 00 00    	mov    edx,DWORD PTR ds:0x0
+ 661:	89 10                	mov    DWORD PTR [eax],edx
+ 663:	0f b6 15 04 00 00 00 	movzx  edx,BYTE PTR ds:0x4
+ 66a:	88 50 04             	mov    BYTE PTR [eax+0x4],dl
     blip[1] = '0' + thno;                   // make our blip unique
- 613:	8b 45 08             	mov    eax,DWORD PTR [ebp+0x8]
- 616:	83 c0 30             	add    eax,0x30
- 619:	88 45 ed             	mov    BYTE PTR [ebp-0x13],al
+ 66d:	8b 45 08             	mov    eax,DWORD PTR [ebp+0x8]
+ 670:	83 c0 30             	add    eax,0x30
+ 673:	88 45 ed             	mov    BYTE PTR [ebp-0x13],al
 
     while (1) {
         // write new blip
         pokevstr(ypos, column, blip, CYAN);
- 61c:	6a 0b                	push   0xb
- 61e:	8d 45 ec             	lea    eax,[ebp-0x14]
- 621:	50                   	push   eax
- 622:	ff 75 f8             	push   DWORD PTR [ebp-0x8]
- 625:	ff 75 fc             	push   DWORD PTR [ebp-0x4]
- 628:	e8 fc ff ff ff       	call   629 <vthread+0x4b>
- 62d:	83 c4 10             	add    esp,0x10
-        sleep(1);
- 630:	6a 01                	push   0x1
- 632:	e8 fc ff ff ff       	call   633 <vthread+0x55>
- 637:	83 c4 04             	add    esp,0x4
+ 676:	6a 0b                	push   0xb
+ 678:	8d 45 ec             	lea    eax,[ebp-0x14]
+ 67b:	50                   	push   eax
+ 67c:	ff 75 f8             	push   DWORD PTR [ebp-0x8]
+ 67f:	ff 75 fc             	push   DWORD PTR [ebp-0x4]
+ 682:	e8 fc ff ff ff       	call   683 <vthread+0x4a>
+ 687:	83 c4 10             	add    esp,0x10
+        pause();
+ 68a:	e8 fc ff ff ff       	call   68b <vthread+0x52>
 
         mdir = vcollision(ypos, column, &ydir, sizeof(vblip));
- 63a:	6a 04                	push   0x4
- 63c:	8d 45 e8             	lea    eax,[ebp-0x18]
- 63f:	50                   	push   eax
- 640:	ff 75 f8             	push   DWORD PTR [ebp-0x8]
- 643:	ff 75 fc             	push   DWORD PTR [ebp-0x4]
- 646:	e8 fc ff ff ff       	call   647 <vthread+0x69>
- 64b:	83 c4 10             	add    esp,0x10
- 64e:	89 45 f4             	mov    DWORD PTR [ebp-0xc],eax
+ 68f:	6a 04                	push   0x4
+ 691:	8d 45 e8             	lea    eax,[ebp-0x18]
+ 694:	50                   	push   eax
+ 695:	ff 75 f8             	push   DWORD PTR [ebp-0x8]
+ 698:	ff 75 fc             	push   DWORD PTR [ebp-0x4]
+ 69b:	e8 fc ff ff ff       	call   69c <vthread+0x63>
+ 6a0:	83 c4 10             	add    esp,0x10
+ 6a3:	89 45 f4             	mov    DWORD PTR [ebp-0xc],eax
 
         // blank part of old blip
         if (mdir > 0)
- 651:	83 7d f4 00          	cmp    DWORD PTR [ebp-0xc],0x0
- 655:	7e 14                	jle    66b <vthread+0x8d>
+ 6a6:	83 7d f4 00          	cmp    DWORD PTR [ebp-0xc],0x0
+ 6aa:	7e 14                	jle    6c0 <vthread+0x87>
             pokech(ypos, column, ' ', BLACK);
- 657:	6a 00                	push   0x0
- 659:	6a 20                	push   0x20
- 65b:	ff 75 f8             	push   DWORD PTR [ebp-0x8]
- 65e:	ff 75 fc             	push   DWORD PTR [ebp-0x4]
- 661:	e8 fc ff ff ff       	call   662 <vthread+0x84>
- 666:	83 c4 10             	add    esp,0x10
- 669:	eb 1c                	jmp    687 <vthread+0xa9>
+ 6ac:	6a 00                	push   0x0
+ 6ae:	6a 20                	push   0x20
+ 6b0:	ff 75 f8             	push   DWORD PTR [ebp-0x8]
+ 6b3:	ff 75 fc             	push   DWORD PTR [ebp-0x4]
+ 6b6:	e8 fc ff ff ff       	call   6b7 <vthread+0x7e>
+ 6bb:	83 c4 10             	add    esp,0x10
+ 6be:	eb 1c                	jmp    6dc <vthread+0xa3>
         else if (mdir < 0)
- 66b:	83 7d f4 00          	cmp    DWORD PTR [ebp-0xc],0x0
- 66f:	79 16                	jns    687 <vthread+0xa9>
+ 6c0:	83 7d f4 00          	cmp    DWORD PTR [ebp-0xc],0x0
+ 6c4:	79 16                	jns    6dc <vthread+0xa3>
             pokech(ypos+sizeof(vblip)-2, column, ' ', BLACK);
- 671:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
- 674:	83 c0 02             	add    eax,0x2
- 677:	6a 00                	push   0x0
- 679:	6a 20                	push   0x20
- 67b:	ff 75 f8             	push   DWORD PTR [ebp-0x8]
- 67e:	50                   	push   eax
- 67f:	e8 fc ff ff ff       	call   680 <vthread+0xa2>
- 684:	83 c4 10             	add    esp,0x10
+ 6c6:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+ 6c9:	83 c0 02             	add    eax,0x2
+ 6cc:	6a 00                	push   0x0
+ 6ce:	6a 20                	push   0x20
+ 6d0:	ff 75 f8             	push   DWORD PTR [ebp-0x8]
+ 6d3:	50                   	push   eax
+ 6d4:	e8 fc ff ff ff       	call   6d5 <vthread+0x9c>
+ 6d9:	83 c4 10             	add    esp,0x10
 
         ypos += mdir;
- 687:	8b 45 f4             	mov    eax,DWORD PTR [ebp-0xc]
- 68a:	01 45 fc             	add    DWORD PTR [ebp-0x4],eax
-    }
- 68d:	eb 8d                	jmp    61c <vthread+0x3e>
+ 6dc:	8b 45 f4             	mov    eax,DWORD PTR [ebp-0xc]
+ 6df:	01 45 fc             	add    DWORD PTR [ebp-0x4],eax
+        pokevstr(ypos, column, blip, CYAN);
+ 6e2:	eb 92                	jmp    676 <vthread+0x3d>
 
-0000068f <main>:
+000006e4 <main>:
+    }
 }
 
 int
 main(void)
 {
- 68f:	55                   	push   ebp
- 690:	89 e5                	mov    ebp,esp
- 692:	83 ec 10             	sub    esp,0x10
+ 6e4:	55                   	push   ebp
+ 6e5:	89 e5                	mov    ebp,esp
+ 6e7:	83 ec 10             	sub    esp,0x10
     int i;
     int ncpus;
 
     map_vga_memory();
- 695:	e8 fc ff ff ff       	call   696 <main+0x7>
-  
-    //  0x1000 = ncpus
-    ncpus = syscall0(0x1000);
- 69a:	68 00 10 00 00       	push   0x1000
- 69f:	e8 fc ff ff ff       	call   6a0 <main+0x11>
- 6a4:	83 c4 04             	add    esp,0x4
- 6a7:	89 45 f8             	mov    DWORD PTR [ebp-0x8],eax
+ 6ea:	e8 fc ff ff ff       	call   6eb <main+0x7>
 
-//    // testvga only has room for 16 stacks ...
-//    if (ncpus > MAX_THREADS)
-//        ncpus = MAX_THREADS;
+    ncpus = syscall0(0x1000);       //  0x1000 = ncpus
+ 6ef:	68 00 10 00 00       	push   0x1000
+ 6f4:	e8 fc ff ff ff       	call   6f5 <main+0x11>
+ 6f9:	83 c4 04             	add    esp,0x4
+ 6fc:	89 45 f8             	mov    DWORD PTR [ebp-0x8],eax
+
+    if (ncpus > MAX_THREADS)
+ 6ff:	83 7d f8 20          	cmp    DWORD PTR [ebp-0x8],0x20
+ 703:	7e 07                	jle    70c <main+0x28>
+        ncpus = MAX_THREADS;
+ 705:	c7 45 f8 20 00 00 00 	mov    DWORD PTR [ebp-0x8],0x20
+
+    // create boundaries for blips
+    box(0, 0, HEIGHT-1, WIDTH-1, GRAY);
+ 70c:	6a 08                	push   0x8
+ 70e:	6a 4f                	push   0x4f
+ 710:	6a 12                	push   0x12
+ 712:	6a 00                	push   0x0
+ 714:	6a 00                	push   0x0
+ 716:	e8 fc ff ff ff       	call   717 <main+0x33>
+ 71b:	83 c4 14             	add    esp,0x14
+
+    for (i = 1; i < ncpus; i++) {
+ 71e:	c7 45 fc 01 00 00 00 	mov    DWORD PTR [ebp-0x4],0x1
+ 725:	eb 30                	jmp    757 <main+0x73>
+        if (i & 1)
+ 727:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+ 72a:	83 e0 01             	and    eax,0x1
+ 72d:	85 c0                	test   eax,eax
+ 72f:	74 12                	je     743 <main+0x5f>
+            new_thread(vthread, i);
+ 731:	ff 75 fc             	push   DWORD PTR [ebp-0x4]
+ 734:	68 00 00 00 00       	push   0x0
+ 739:	e8 fc ff ff ff       	call   73a <main+0x56>
+ 73e:	83 c4 08             	add    esp,0x8
+ 741:	eb 10                	jmp    753 <main+0x6f>
+        else
+            new_thread(hthread, i);
+ 743:	ff 75 fc             	push   DWORD PTR [ebp-0x4]
+ 746:	68 00 00 00 00       	push   0x0
+ 74b:	e8 fc ff ff ff       	call   74c <main+0x68>
+ 750:	83 c4 08             	add    esp,0x8
+    for (i = 1; i < ncpus; i++) {
+ 753:	83 45 fc 01          	add    DWORD PTR [ebp-0x4],0x1
+ 757:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+ 75a:	3b 45 f8             	cmp    eax,DWORD PTR [ebp-0x8]
+ 75d:	7c c8                	jl     727 <main+0x43>
+    }
+    start_threads();                // currently an ipi is needed to start threads
+ 75f:	e8 fc ff ff ff       	call   760 <main+0x7c>
 
     pokehstr(1, 1, "using", YELLOW);
- 6aa:	6a 0e                	push   0xe
- 6ac:	68 0c 00 00 00       	push   0xc
- 6b1:	6a 01                	push   0x1
- 6b3:	6a 01                	push   0x1
- 6b5:	e8 fc ff ff ff       	call   6b6 <main+0x27>
- 6ba:	83 c4 10             	add    esp,0x10
-    pokehstr(1, 9, "of", YELLOW);
- 6bd:	6a 0e                	push   0xe
- 6bf:	68 12 00 00 00       	push   0x12
- 6c4:	6a 09                	push   0x9
- 6c6:	6a 01                	push   0x1
- 6c8:	e8 fc ff ff ff       	call   6c9 <main+0x3a>
- 6cd:	83 c4 10             	add    esp,0x10
-    // ... but we know the kernel can only handle 8 threads right now
-    i = 13;
- 6d0:	c7 45 fc 0d 00 00 00 	mov    DWORD PTR [ebp-0x4],0xd
-    if (ncpus > 8) {
- 6d7:	83 7d f8 08          	cmp    DWORD PTR [ebp-0x8],0x8
- 6db:	7e 1d                	jle    6fa <main+0x6b>
-        i += pokehint(1, 12, ncpus, YELLOW);
- 6dd:	6a 0e                	push   0xe
- 6df:	ff 75 f8             	push   DWORD PTR [ebp-0x8]
- 6e2:	6a 0c                	push   0xc
- 6e4:	6a 01                	push   0x1
- 6e6:	e8 fc ff ff ff       	call   6e7 <main+0x58>
- 6eb:	83 c4 10             	add    esp,0x10
- 6ee:	01 45 fc             	add    DWORD PTR [ebp-0x4],eax
-        ncpus = 8;
- 6f1:	c7 45 f8 08 00 00 00 	mov    DWORD PTR [ebp-0x8],0x8
- 6f8:	eb 19                	jmp    713 <main+0x84>
-    } else {
-        pokech(1, 12, '0'+ncpus, YELLOW);
- 6fa:	8b 45 f8             	mov    eax,DWORD PTR [ebp-0x8]
- 6fd:	83 c0 30             	add    eax,0x30
- 700:	6a 0e                	push   0xe
- 702:	50                   	push   eax
- 703:	6a 0c                	push   0xc
- 705:	6a 01                	push   0x1
- 707:	e8 fc ff ff ff       	call   708 <main+0x79>
- 70c:	83 c4 10             	add    esp,0x10
-        i++;
- 70f:	83 45 fc 01          	add    DWORD PTR [ebp-0x4],0x1
-    }
+ 764:	6a 0e                	push   0xe
+ 766:	68 0c 00 00 00       	push   0xc
+ 76b:	6a 01                	push   0x1
+ 76d:	6a 01                	push   0x1
+ 76f:	e8 fc ff ff ff       	call   770 <main+0x8c>
+ 774:	83 c4 10             	add    esp,0x10
+    pokehint(1, 7, i, YELLOW);
+ 777:	6a 0e                	push   0xe
+ 779:	ff 75 fc             	push   DWORD PTR [ebp-0x4]
+ 77c:	6a 07                	push   0x7
+ 77e:	6a 01                	push   0x1
+ 780:	e8 fc ff ff ff       	call   781 <main+0x9d>
+ 785:	83 c4 10             	add    esp,0x10
+    pokehstr(1, 10, "of", YELLOW);
+ 788:	6a 0e                	push   0xe
+ 78a:	68 12 00 00 00       	push   0x12
+ 78f:	6a 0a                	push   0xa
+ 791:	6a 01                	push   0x1
+ 793:	e8 fc ff ff ff       	call   794 <main+0xb0>
+ 798:	83 c4 10             	add    esp,0x10
+    i = 14;
+ 79b:	c7 45 fc 0e 00 00 00 	mov    DWORD PTR [ebp-0x4],0xe
+    i += pokehint(1, 13, ncpus, YELLOW);
+ 7a2:	6a 0e                	push   0xe
+ 7a4:	ff 75 f8             	push   DWORD PTR [ebp-0x8]
+ 7a7:	6a 0d                	push   0xd
+ 7a9:	6a 01                	push   0x1
+ 7ab:	e8 fc ff ff ff       	call   7ac <main+0xc8>
+ 7b0:	83 c4 10             	add    esp,0x10
+ 7b3:	01 45 fc             	add    DWORD PTR [ebp-0x4],eax
     pokehstr(1, i, "cpus", YELLOW);
- 713:	6a 0e                	push   0xe
- 715:	68 15 00 00 00       	push   0x15
- 71a:	ff 75 fc             	push   DWORD PTR [ebp-0x4]
- 71d:	6a 01                	push   0x1
- 71f:	e8 fc ff ff ff       	call   720 <main+0x91>
- 724:	83 c4 10             	add    esp,0x10
-    pokech(1, 7, '0'+ncpus, YELLOW);
- 727:	8b 45 f8             	mov    eax,DWORD PTR [ebp-0x8]
- 72a:	83 c0 30             	add    eax,0x30
- 72d:	6a 0e                	push   0xe
- 72f:	50                   	push   eax
- 730:	6a 07                	push   0x7
- 732:	6a 01                	push   0x1
- 734:	e8 fc ff ff ff       	call   735 <main+0xa6>
- 739:	83 c4 10             	add    esp,0x10
-
-    // create boundaries for blips
-    box(0, 0, HEIGHT-1, WIDTH-1, GRAY);
- 73c:	6a 08                	push   0x8
- 73e:	6a 4f                	push   0x4f
- 740:	6a 12                	push   0x12
- 742:	6a 00                	push   0x0
- 744:	6a 00                	push   0x0
- 746:	e8 fc ff ff ff       	call   747 <main+0xb8>
- 74b:	83 c4 14             	add    esp,0x14
-
-    for (i = 1; i < ncpus; i++) {
- 74e:	c7 45 fc 01 00 00 00 	mov    DWORD PTR [ebp-0x4],0x1
- 755:	eb 30                	jmp    787 <main+0xf8>
-        if (i & 1)
- 757:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
- 75a:	83 e0 01             	and    eax,0x1
- 75d:	85 c0                	test   eax,eax
- 75f:	74 12                	je     773 <main+0xe4>
-            new_thread(vthread, i);
- 761:	ff 75 fc             	push   DWORD PTR [ebp-0x4]
- 764:	68 00 00 00 00       	push   0x0
- 769:	e8 fc ff ff ff       	call   76a <main+0xdb>
- 76e:	83 c4 08             	add    esp,0x8
- 771:	eb 10                	jmp    783 <main+0xf4>
-        else
-            new_thread(hthread, i);
- 773:	ff 75 fc             	push   DWORD PTR [ebp-0x4]
- 776:	68 00 00 00 00       	push   0x0
- 77b:	e8 fc ff ff ff       	call   77c <main+0xed>
- 780:	83 c4 08             	add    esp,0x8
-    pokech(1, 7, '0'+ncpus, YELLOW);
-
-    // create boundaries for blips
-    box(0, 0, HEIGHT-1, WIDTH-1, GRAY);
-
-    for (i = 1; i < ncpus; i++) {
- 783:	83 45 fc 01          	add    DWORD PTR [ebp-0x4],0x1
- 787:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
- 78a:	3b 45 f8             	cmp    eax,DWORD PTR [ebp-0x8]
- 78d:	7c c8                	jl     757 <main+0xc8>
-        else
-            new_thread(hthread, i);
-    }
+ 7b6:	6a 0e                	push   0xe
+ 7b8:	68 15 00 00 00       	push   0x15
+ 7bd:	ff 75 fc             	push   DWORD PTR [ebp-0x4]
+ 7c0:	6a 01                	push   0x1
+ 7c2:	e8 fc ff ff ff       	call   7c3 <main+0xdf>
+ 7c7:	83 c4 10             	add    esp,0x10
 
     // main is thread 0
     hthread(0);
- 78f:	6a 00                	push   0x0
- 791:	e8 fc ff ff ff       	call   792 <main+0x103>
- 796:	83 c4 04             	add    esp,0x4
- 799:	b8 00 00 00 00       	mov    eax,0x0
+ 7ca:	6a 00                	push   0x0
+ 7cc:	e8 fc ff ff ff       	call   7cd <main+0xe9>
+ 7d1:	83 c4 04             	add    esp,0x4
+ 7d4:	b8 00 00 00 00       	mov    eax,0x0
 
     // no return
 }
- 79e:	c9                   	leave  
- 79f:	c3                   	ret    
+ 7d9:	c9                   	leave  
+ 7da:	c3                   	ret    
 
-000007a0 <_start>:
-                            (u64)&_end, (u64)&_start
+000007db <_start>:
+                            (u64)&_end, (u64)&_start, (u64)&_data, 0,
 #endif
                             };
 void
 _start(void)
 {
- 7a0:	55                   	push   ebp
- 7a1:	89 e5                	mov    ebp,esp
+ 7db:	55                   	push   ebp
+ 7dc:	89 e5                	mov    ebp,esp
 //  asm("    finit;      \n");      // include if using floating point
     asm("    call main;  \n");
- 7a3:	e8 fc ff ff ff       	call   7a4 <_start+0x4>
+ 7de:	e8 fc ff ff ff       	call   7df <_start+0x4>
     asm("1:  iret;       \n");
- 7a8:	cf                   	iret   
+ 7e3:	cf                   	iret   
     asm("    jmp 1;      \n");
- 7a9:	e9 fd ff ff ff       	jmp    7ab <_start+0xb>
+ 7e4:	e9 fd ff ff ff       	jmp    7e6 <_start+0xb>
 }
- 7ae:	90                   	nop
- 7af:	5d                   	pop    ebp
- 7b0:	c3                   	ret    
+ 7e9:	90                   	nop
+ 7ea:	5d                   	pop    ebp
+ 7eb:	c3                   	ret    

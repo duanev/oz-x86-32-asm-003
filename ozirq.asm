@@ -69,6 +69,8 @@ intvmmsg            db  "vm fault: ",0
 
   align 4
 irq_err_lno dd 0
+fault_count dd 0
+ten_secs_counter dd 100
 
 ; ---- IRQ hardware initialization ----
 
@@ -110,12 +112,14 @@ irq_init_bsp_apic_hardware :
 
     ; ---- test for an apic
 
-    mov  eax,[0xfee00370]
-    and  eax,0xffffff00
-    or   eax,apicerr_int
-    mov  [0xfee00370],eax   ; setup LVT3 error vector
+; not needed?  causing problems?
+;   mov  eax,[0xfee00370]
+;   and  eax,0xffffff00
+;   or   eax,apicerr_int
+;   mov  [0xfee00370],eax   ; setup LVT3 error vector
 
-    mov  eax,0x00000100 + spurious_int    ; enable + spurious int
+    ;mov  eax,0x00000100 + spurious_int    ; enable + spurious int
+    mov  eax,0x00000100     ; enable
     mov  [0xfee000f0],eax   ; Spurious interrupt vector reg
     mov  eax,0x01000000
     mov  [0xfee000d0],eax   ; set our LDR
@@ -136,7 +140,7 @@ irq_init_bsp_apic_hardware :
     ; ---- visual indicator: lapic active
 
     mov  ax,videosel        ; point gs at video memory
-    mov  gs,ax          
+    mov  gs,ax
     mov  byte [gs:25*2],'+'
 
     ret
@@ -158,12 +162,14 @@ irq_init_ap_apic_hardware :
     shl  ebx,cl             ; bit mask based on cpu number
     mov  [0xfee000d0],ebx   ; set our LDR
 
-    mov  eax,[0xfee00370]
-    and  eax,0xffffff00
-    or   eax,apicerr_int
-    mov  [0xfee00370],eax   ; setup LVT3 error vector
+; not needed?  causing problems?
+;   mov  eax,[0xfee00370]
+;   and  eax,0xffffff00
+;   or   eax,apicerr_int
+;   mov  [0xfee00370],eax   ; setup LVT3 error vector
 
-    mov  eax,0x00000100 + spurious_int  ; enable + spurious int
+    ;mov  eax,0x00000100 + spurious_int  ; enable + spurious int
+    mov  eax,0x00000100     ; enable
     mov  [0xfee000f0],eax   ; Spurious interrupt vector reg
     xor  eax,eax
     mov  [0xfee000b0],eax   ; eoi anything outstanding
@@ -237,7 +243,7 @@ int_handler_devna :
     ;call irq_print_msg
     ;pop  esi
     ; FIXME fxsave/fxrestore the fpu/sse/mmx regs
-    clts                ; sure! you can use the fpu
+    clts                ; sure! everybody can use the fpu
     iret
 
 align 4
@@ -425,7 +431,7 @@ int_handler_simdfpe :
 display_irq :
     push eax
     mov  ax,videosel        ; point gs at video memory
-    mov  gs,ax          
+    mov  gs,ax
     mov  al,bh              ; display irq "number"
     and  ebx,0xff
     mov  [gs:ebx],al
@@ -437,36 +443,54 @@ display_irq :
     pop  eax
     ret
 
+
+ipi_cpu :
+    push eax
+    xor  eax,eax
+;   shl  eax,24                     ; cpu (apic) number is in eax
+    mov  dword [0xfee00310],eax     ; via the destination register ...
+;   mov  eax,0x04800 + wakeup_int   ; no shrthnd, fixed, logical, edge
+
+; ah, just kick everybody so each can see if there is something to do
+    mov  eax,0xc4800 + wakeup_int   ; all except self, fixed, logical, edge
+    mov  dword [0xfee00300],eax
+    pop  eax
+    ret
+
 align 4
 int_handler_timer :
+    push eax
     push ebx
+    push ecx
     mov  bx,('t' << 8) + 30*2
     call display_irq
-    pop  ebx
 
-    push eax
+    ; ---- freeze on fault: this stops all timer related activity
+    ; ---- (also see ozsys.asm)
+    cmp  dword [fault_count],0
+    jnz  freeze_for_debug
 
     ; ---- wakeup any sleeping cpus (see syscall_sleep)
 
-    mov  al,[enabled_lapic]
-    or   al,al
-    jz   no_sleepers
+    ; resume handles this now ...
+    ;call ipi_cpu
 
-    ; the race here is not important, we'll catch them on the next tick
+    ; debug
+    mov eax,[ten_secs_counter]
+    dec eax
+    ja  dont_reset
+    mov eax,100
+dont_reset :
+    mov [ten_secs_counter],eax
+    ; debug end
 
-    mov  eax,[sleepers]
-    or   eax,eax
-    jz   no_sleepers
-    shl  eax,24                     ; FIXME can only handle 8 cpus
-    mov  dword [0xfee00310],eax     ; via the destination register ...
-    mov  eax,0x04800 + wakeup_int   ; no shrthnd, fixed, logical, edge
-    mov  dword [0xfee00300],eax
-
-no_sleepers :
-    mov  al,0x20        
+freeze_for_debug :
+    mov  al,0x20
     out  0x20,al            ; signal end of interrupt (eoi)
+    pop  ecx
+    pop  ebx
     pop  eax
-    iret                
+    iret
 
 align 4
 int_handler_kbd :
@@ -686,6 +710,10 @@ int_handler_tg_dblflt :
     mov  esi,int08msg
     call irq_print_msg
     pop  esi
+    add  ebx,2
+    mov  eax,cr2
+    ;mov  eax,[esp]           ; print the value on the stack
+    call putx_vga
     jmp  reboot_on_alt_key
 
 ; called via the invalid tss task
@@ -720,10 +748,7 @@ int_handler_apicerr :
 ; serves only to eoi the fixed ipi used for sleep wakeup
 align 4
 wakeup :
-    push eax
-    xor  eax,eax
-    mov  [0xfee000b0],eax    ; lapic eoi
-    pop  eax
+    mov  dword [0xfee000b0],0   ; lapic eoi
     iret
 
 
@@ -736,6 +761,12 @@ sysent :
     jz   syscall_ncpus
     cmp  eax,0x2000
     jz   syscall_sleep
+    cmp  eax,0x2001
+    jz   syscall_pause
+    cmp  eax,0x2002
+    jz   syscall_resume
+    cmp  eax,0x2003
+    jz   syscall_ipi_all
     cmp  eax,0x2100
     jz   syscall_new_thread
     cmp  eax,0x2700
@@ -787,6 +818,8 @@ skip_cpumsg :
 
 
 reboot_on_alt_key :
+    ;inc  dword [fault_count]
+    cli
 reboot_on_alt_key_loop :
     in   al,0x60
     cmp  al,0x53            ; scan code for the DEL key
@@ -891,28 +924,7 @@ apic1_irqbase equ ($ - irq_setup_table)/2
     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0x80
     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0x90
     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0xa0
-    ; set up cpu thread management tss gates
-    ; these map 1-to-1 to cpus
-first_thread_tss_gate equ ($ - irq_setup_table)/2
-    dw  tasksel_u00           + irqt_task
-    dw  tasksel_u01           + irqt_task
-    dw  tasksel_u02           + irqt_task
-    dw  tasksel_u03           + irqt_task
-    dw  tasksel_u04           + irqt_task
-    dw  tasksel_u05           + irqt_task
-    dw  tasksel_u06           + irqt_task
-    dw  tasksel_u07           + irqt_task
-%ifdef FOO
-    dw  tasksel_u08           + irqt_task
-    dw  tasksel_u09           + irqt_task
-    dw  tasksel_u10           + irqt_task
-    dw  tasksel_u11           + irqt_task
-    dw  tasksel_u12           + irqt_task
-    dw  tasksel_u13           + irqt_task
-    dw  tasksel_u14           + irqt_task
-    dw  tasksel_u15           + irqt_task
-%endif
-    dw                  0,0,0,0,0,0,0,0   ; 0xb0
+    dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0xb0
     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0xc0
     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   ; 0xd0
     dw  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0     ; 0xe0

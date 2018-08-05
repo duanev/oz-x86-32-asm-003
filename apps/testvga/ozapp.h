@@ -22,9 +22,12 @@ struct ozapp {
     u32 xx0;
     u32 entry;
     u32 xx1;
+    u32 data;
+    u32 xx2;
 #else
     u64 end;
     u64 entry;
+    u64 data;
 #endif
 };
 
@@ -33,6 +36,7 @@ struct ozapp {
 
 void _start(void);
 extern void * _end;
+extern void * _data;
 
 __attribute__((section ("hdrsec")))
 
@@ -43,9 +47,9 @@ __attribute__((section ("hdrsec")))
 struct ozapp app_header = { {'o','z','a','p','p'}, 0, 0, 0,
                             ARCH_X86, SUBARCH_OZ_PM_4GB_FLAT, 0, 0,
 #if MACHINE_WORD_SIZE == 32
-                            (u32)&_end, 0, (u32)&_start, 0
+                            (u32)&_end, 0, (u32)&_start, 0, (u32)&_data, 0,
 #else
-                            (u64)&_end, (u64)&_start
+                            (u64)&_end, (u64)&_start, (u64)&_data, 0,
 #endif
                             };
 void
@@ -56,4 +60,3 @@ _start(void)
     asm("1:  iret;       \n");
     asm("    jmp 1;      \n");
 }
-

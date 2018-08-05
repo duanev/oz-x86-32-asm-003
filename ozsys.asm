@@ -77,57 +77,43 @@ syscall_new_thread :
     jz   new_thread_fail        ; don't get to ask for cpu 0
 
     xor  eax,eax
-    mov  al,[enabled_lapic]     ; if the lapics are not enabled,
-    or   al,al                  ; none of this is useful
-    jz   new_thread_fail
+    cmp  ebx,((gdt_end - gdt_tasks) / 8 / 2)    ; / sizeof(gdt) / 2 per task
+    jae  new_thread_fail        ; we don't have enough gdt entries
 
     ; setup the tss
     ; slightly squirly - get the tss address from the task selector
-    ; but there could be a race here: ncpus is updated before
-    ; create_tss_pair is called, so the task selector could be zero!
 
     mov  edi,ebx
     shl  edi,4                  ; 8 byte selectors in pairs
     add  edi,tasksel_u00
-    mov  esi,[gdt+edi+2]
+    mov  esi,[gdt+edi+2]        ; get the tss base address
     and  esi,0xffffff
-    xor  eax,eax
     mov  al,[gdt+edi+7]
     shl  eax,24
     or   esi,eax
-    jz   new_thread_fail        ; cpu isn't yet ready ...
+    jz   new_thread_fail        ; task is not yet initialized ...
 
     ; really should check the previous task link to see if this
     ; cpu is busy ...
 
-    mov  [esi+(tss0_esp-tss0)],ecx  ; set the app's stack
-    mov  [esi+(tss0_eip-tss0)],edx  ; set the ip to the entry point
+    mov  [esi+(tss_esp-tss)],ecx    ; set the app's stack
+    mov  [esi+(tss_eip-tss)],edx    ; set the eip to the entry point
+    ; ********* set the eip LAST as this unleashes the associated cpu *********
 
-    ; lookup the requested cpu's int/taskgate gdt selector
+    ; like to eventually ipi only the cpu we just configured for this thread,
+    ; but need to figure out how to ipi a single cpu beyond the 8th ...
+    ; for now we have to ipi them all at once: the ones in nb_idle with
+    ; a new tss will start
 
-    mov  edi,ebx
-    add  edi,first_thread_tss_gate  ; convert ebx to int/taskgate number
-
-    ; ipi a cpu.  no fancy affinity scheduling yet,
-    ; just let the app ask for a specific cpu to do the work
-
-    mov  eax,0x01000000
-    mov  ecx,ebx                    ; recover requested cpu number
-    shl  eax,cl                     ; form the icr destination field
-
-    ; poke the cpu that matches our thread index - we only get 8 :/
-
-    mov  dword [0xfee00310],eax
-    mov  eax,0x4800                 ; no shorthand, fixed, logical, edge
-    or   eax,edi                    ; make int/taskgate number the vector
-    mov  dword [0xfee00300],eax
+    ; and there is no fancy affinity scheduling yet, just let the app
+    ; ask for a specific cpu to do the work
 
     xor  eax,eax
     iret
 
 new_thread_fail :
     dec  eax                    ; -1
-    ret
+    iret
 
 ;------------------------------------------------------------------
 ;   syscall_sleep : wait for N timer interrupts
@@ -136,28 +122,137 @@ new_thread_fail :
 ;       edx = N ticks
 ;   exit:
 
+;n_to_bits :
+;    db  00h
+;    db  01h
+;    db  02h
+;    db  04h
+;    db  08h
+;    db  10h
+;    db  20h
+;    db  40h
+;    db  80h
+
 syscall_sleep :
     mov  al,[enabled_lapic]
     or   al,al
     jz   sleep_loop
 
-    mov  eax,[0xfee00020]
-    shr  eax,24
-    or   eax,eax
-    jz   sleep_loop         ; the boot cpu services the timer int
-    mov  cl,al              ; so don't add it to the sleeper list
-    mov  eax,1
-    shl  eax,cl
+; no need for any of this at the moment ...
+;   mov  ecx,sleepers
+;   xor  ebx,ebx
+;   mov  eax,[0xfee00020]
+;   shr  eax,24
+;   or   eax,eax
+;   jz   sleep_loop         ; the boot cpu services the timer int
+;   mov  ebx,eax            ; so don't add it to the sleeper list
+;   shr  ebx,3
+;   and  eax,7h
+;   mov  al,[n_to_bits+eax]
 
 sleep_loop :
-    lock or [sleepers],eax  ; announce we are sleeping
+;   lock or [sleepers+ebx],al   ; announce we are sleeping
     sti
     hlt                     ; wait for an int to wake us up
     dec  edx                ; decrement the tick count
     jnz  sleep_loop
 
+    ; ---- freeze on a fault: stops all timer related activity
+    ; ---- and hangs the boot cpu (also see ozirq.asm)
+    cmp  dword [fault_count],0
+    jnz  sleep_loop
+
     xor  eax,-1
-    lock and [sleepers],eax ; renounce sleepiness
+;   lock and [sleepers+ebx],al  ; renounce sleepiness
+    iret
+
+;------------------------------------------------------------------
+;   syscall_pause : wait for a resume
+
+syscall_pause :
+
+%ifdef HAVE_MWAIT
+
+    ; two paths through pause, the first forces all cores to synchronize
+    ; with wait_addr (using a loop to test the contents of wait_addr),
+    ; the other simply uses a single instance of monitor/mwait.
+    ; apparently synchronizing on the first resume allows subsequent
+    ; mwaits to work correctly - if mwait is used alone without this "sync"
+    ; that mwait only rarely works (for like 1 core out of 47).
+    ; note that implementation wise pause/resume here only syncs once
+    ; the first time it is called by the first app (nothing resets wait_addr to zero),
+    ; but it is still unknown if more that one sync is needed.
+
+    mov  edi,[wait_addr]
+    cmp  edi,edi
+    jnz  no_loop            ; first pause?
+
+    ; sync all the cores together the first time through
+    ; after this mwait works reliably
+
+    cli                     ; this would kill "pre-emptive multithreading"
+                            ; except that is is not implemented  :D
+                            ; only one app runs at a time here so no big deal
+false_alarm :
+    mov  eax,wait_addr
+    ;mfence                  ; workaround for certain Intel P6 family models
+    ;clflush [eax]           ; (see X86_BUG_CLFLUSH_MONITOR in linux kernel)
+    ;mfence
+
+    xor  ebx,ebx
+    xor  ecx,ecx
+    xor  edx,edx
+    monitor
+    ;xor  ecx,ecx
+    mov  ecx,1              ; dont let interrupts break mwait (req: cpuid.5:ecx bit1)
+    mov  eax,(5<<4)         ; ask for C6
+    ;mov  eax,(1<<4)         ; ask for C2
+    ;xor  eax,eax            ; use for C1
+    mwait
+
+    cmp  edi,[wait_addr]
+    jz   false_alarm
+
+    iret
+
+no_loop :
+    xor  ebx,ebx
+    xor  ecx,ecx
+    xor  edx,edx
+    monitor
+    ;xor  ecx,ecx
+    mov  ecx,1              ; dont let interrupts break mwait (req: cpuid.5:ecx bit1)
+    mov  eax,(5<<4)         ; ask for C6
+    ;mov  eax,(1<<4)         ; ask for C2
+    ;xor  eax,eax            ; use for C1
+    mwait
+
+    iret
+
+%else
+    sti
+    hlt                     ; wait for an int to wake us up
+    iret
+
+%endif
+
+;------------------------------------------------------------------
+;   syscall_resume : unpause every core
+
+syscall_resume :
+%ifdef HAVE_MWAIT
+    mov  eax,wait_addr
+    lock inc dword [eax]
+%else
+    call ipi_cpu
+%endif
+    iret
+
+;------------------------------------------------------------------
+;   syscall_ipi_all : kick every core out of hlt
+
+syscall_ipi_all :
+    call ipi_cpu
     iret
 
 ;------------------------------------------------------------------
@@ -193,7 +288,7 @@ map_pmem :
     push ebx
     push edi
 
-    invlpg [edx]
+    invlpg [edx]                ; necessary on real Intel hw
     push edx
     mov  ebx,cr3
     and  ebx,0xfffff000
@@ -211,18 +306,23 @@ map_pmem :
     jz   map_pmem_fail
     shl  eax,12                 ; convert pgno to pgtbl entry
     mov  [ebx+edi],eax          ; update page table
+    invlpg [ebx+edi]
 
 map_pmem_have_pgtbl :
     ; for now, no security check, just direct map the address
     ; and mark the pages and the page table r/w by all
-    or   dword [ebx+edi],7      ; user, r/w, present
+    ;or   dword [ebx+edi],7      ; user, r/w, present
+    ; assume for now that all map_pmem calls are for real devices
+    or   dword [ebx+edi],1fh     ; cache disable, write through, user, r/w, present
 
     mov  ebx,[ebx+edi]
     and  ebx,0xfffff000
     pop  eax                    ; recover requested phys mem addr
     ; FIXME yup, big security hole if called by ring 0! And it is ...
-    or   eax,7                  ; user, r/w, present
+    ;or   eax,7                  ; user, r/w, present
+    or   eax,1fh                ; cache disable, write through, user, r/w, present
     mov  [ebx+edx],eax          ; update page directory
+    invlpg [ebx+edx]
     xor  eax,eax                ; 0
 map_pmem_exit :
     pop  edi

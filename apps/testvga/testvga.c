@@ -55,11 +55,32 @@ syscall0(int op)
 void
 sleep(int ticks)
 {
-    //   0x2700 = wait for n timer interrupts
+    //  0x2000 = wait for n timer interrupts
     syscall1(0x2000, ticks);
 }
 
-#define MAX_THREADS 16
+void
+pause(void)
+{
+    //  0x2001 pause : wait for an ipi
+    syscall0(0x2001);
+}
+
+void
+resume(void)
+{
+    //  0x2002 = resume all cores via ipi
+    syscall0(0x2002);
+}
+
+void
+start_threads(void)
+{
+    //  0x2003 = ipi all cores
+    syscall0(0x2003);
+}
+
+#define MAX_THREADS 32
 #define STACK_SIZE  256
 
 // a nonzero initializer here pushes 'stack' out of common
@@ -118,6 +139,8 @@ void
 pokech(int row, int column, int ch, int color)
 {
     VIDEORAM[WIDTH * (TOPLINE + row) + column] = (color << 8) | ch;
+    //__sync_synchronize();
+    //asm volatile ("sfence" ::: "memory");
 }
 
 int
@@ -244,7 +267,7 @@ void
 hthread(int thno)
 {
     char blip[8];
-    int row = 2 * thno + 4;
+    int row = thno / 2 + 2;
     int xpos = 1;
     int xdir = 1;
     int mdir;
@@ -255,7 +278,13 @@ hthread(int thno)
     while (1) {
         // write new blip
         pokehstr(row, xpos, blip, CYAN);
-        sleep(1);
+
+        if (thno == 0) {
+            sleep(1);                       // the control threads sleeps
+            resume();
+        } else {
+            pause();                        // other threads wait
+        }
 
         mdir = hcollision(row, xpos, &xdir, sizeof(hblip));
 
@@ -273,7 +302,7 @@ void
 vthread(int thno)
 {
     char blip[8];
-    int column = 4 * thno + 20;
+    int column = thno * 2 + 20;
     int ypos = 1;
     int ydir = 1;
     int mdir;
@@ -284,7 +313,7 @@ vthread(int thno)
     while (1) {
         // write new blip
         pokevstr(ypos, column, blip, CYAN);
-        sleep(1);
+        pause();
 
         mdir = vcollision(ypos, column, &ydir, sizeof(vblip));
 
@@ -305,27 +334,11 @@ main(void)
     int ncpus;
 
     map_vga_memory();
-  
-    //  0x1000 = ncpus
-    ncpus = syscall0(0x1000);
 
-//    // testvga only has room for 16 stacks ...
-//    if (ncpus > MAX_THREADS)
-//        ncpus = MAX_THREADS;
+    ncpus = syscall0(0x1000);       //  0x1000 = ncpus
 
-    pokehstr(1, 1, "using", YELLOW);
-    pokehstr(1, 9, "of", YELLOW);
-    // ... but we know the kernel can only handle 8 threads right now
-    i = 13;
-    if (ncpus > 8) {
-        i += pokehint(1, 12, ncpus, YELLOW);
-        ncpus = 8;
-    } else {
-        pokech(1, 12, '0'+ncpus, YELLOW);
-        i++;
-    }
-    pokehstr(1, i, "cpus", YELLOW);
-    pokech(1, 7, '0'+ncpus, YELLOW);
+    if (ncpus > MAX_THREADS)
+        ncpus = MAX_THREADS;
 
     // create boundaries for blips
     box(0, 0, HEIGHT-1, WIDTH-1, GRAY);
@@ -336,6 +349,14 @@ main(void)
         else
             new_thread(hthread, i);
     }
+    start_threads();                // currently an ipi is needed to start threads
+
+    pokehstr(1, 1, "using", YELLOW);
+    pokehint(1, 7, i, YELLOW);
+    pokehstr(1, 10, "of", YELLOW);
+    i = 14;
+    i += pokehint(1, 13, ncpus, YELLOW);
+    pokehstr(1, i, "cpus", YELLOW);
 
     // main is thread 0
     hthread(0);

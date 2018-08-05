@@ -9,13 +9,17 @@ Output file:  oz_usb1
 ---- No Section ---------------------------------------------------------------
 
 Value     Name
-00001450  total_size
-0000003B  kisectors
-0000F200  kilast
-00000007  max_ncpus_l2
-0000000D  kstack_size_l2
-00002000  kstack_size
-00001000  kstack_loc
+00001C80  total_size
+00000048  kisectors
+00010C00  kilast
+00000080  max_ncpus
+00000008  kstack_size_percpu_l2
+00011000  kistacks
+00000019  first_free_page
+00008000  kstack_size
+00011000  kstack_loc
+00001000  kstack_loc0
+00002000  kstack_size0
 00006000  tss_f08_stk
 00007000  tss_f10_stk
 00007000  sipi_vector
@@ -25,62 +29,33 @@ Value     Name
 00000003  irqt_trap
 00000020  apic0_irqbase
 00000028  apic1_irqbase
-000000B0  first_thread_tss_gate
 000000EF  spurious_int
 000000F0  apicerr_int
 000000FE  wakeup_int
 00000100  irq_setup_table_size
-00001110  kernel_text_size
+000011C0  kernel_text_size
 00000008  descriptor_size
 00000000  nullsel
 00000008  codesel
 00000010  datasel
+00001000  kstkbalo
+00000001  kstkbami
+00000000  kstkbahi
+00007FFF  kstkszlo
+00000000  kstkszhi
 00000018  stacksel
 00000020  videosel
 00000028  rmcssel
 00000030  rmdssel
-00000038  ldtsel1
-00000040  tasksel_f08
-00000048  tasksel_f10
-00000050  tasksel_k00
-00000058  tasksel_u00
-00000060  tasksel_k01
-00000068  tasksel_u01
-00000070  tasksel_k02
-00000078  tasksel_u02
-00000080  tasksel_k03
-00000088  tasksel_u03
-00000090  tasksel_k04
-00000098  tasksel_u04
-000000A0  tasksel_k05
-000000A8  tasksel_u05
-000000B0  tasksel_k06
-000000B8  tasksel_u06
-000000C0  tasksel_k07
-000000C8  tasksel_u07
-000000D0  tasksel_k08
-000000D8  tasksel_u08
-000000E0  tasksel_k09
-000000E8  tasksel_u09
-000000F0  tasksel_k10
-000000F8  tasksel_u10
-00000100  tasksel_k11
-00000108  tasksel_u11
-00000110  tasksel_k12
-00000118  tasksel_u12
-00000120  tasksel_k13
-00000128  tasksel_u13
-00000130  tasksel_k14
-00000138  tasksel_u14
-00000140  tasksel_k15
-00000148  tasksel_u15
-00000010  max_threads
-00000000  nullsel1
-00000008  codesel1
-00000010  datasel1
-00000018  ldt1_len
+00000038  codesel3
+00000040  datasel3
+00000048  tasksel_f08
+00000050  tasksel_f10
+00000058  tasksel_k00
+00000060  tasksel_u00
+00000080  max_threads
 00000068  tss_len
-00000340  kernel_data_size
+00000AC0  kernel_data_size
 
 
 ---- Section .text ------------------------------------------------------------
@@ -90,205 +65,224 @@ Real              Virtual           Name
             7C00              7C00  bios_entry
             7C06              7C06  oemid
             7C24              7C24  load_stage2
-            7C90              7C90  stage2_present
-            7C95              7C95  ioerr
-            7C9A              7C9A  s2err
-            7C9D              7C9D  print_err
-            7CAF              7CAF  hang
-            7CB2              7CB2  puts_vga_rm
-            7CB7              7CB7  puts_vga_rm_loop
-            7CC5              7CC5  puts_vga_rm_done
-            7CC6              7CC6  bootmsg
-            7CE0              7CE0  s2errmsg
-            7CF6              7CF6  ioerrmsg
+            7C92              7C92  stage2_ldr
+            7CC2              7CC2  stage2_next
+            7CCE              7CCE  stage2_done
+            7CDA              7CDA  stage2_present
+            7CDF              7CDF  ioerr
+            7CE4              7CE4  s2err
+            7CE7              7CE7  print_err
+            7CF9              7CF9  hang
+            7CFC              7CFC  puts_vga_rm
+            7D01              7D01  puts_vga_rm_loop
+            7D0F              7D0F  puts_vga_rm_done
+            7D10              7D10  bootmsg
+            7D2A              7D2A  s2errmsg
+            7D40              7D40  ioerrmsg
             7E00              7E00  stage2
             7E04              7E04  non_boot_cpu_ljmp_instruction
             7E09              7E09  start_stage2
             7E0C              7E0C  main
-            7E1F              7E1F  flush_ip1
-            7EDA              7EDA  pgtb0_fill
-            7EEF              7EEF  flush_ip2
-            7F08              7F08  irq_init
-            7F29              7F29  irq_init_task_gate
-            7F66              7F66  no_lapic
-            7F9F              7F9F  no_lapic_init
-            7FBF              7FBF  app_loop
-            7FCC              7FCC  have_an_app
-            803E              803E  non_boot_init
-            805C              805C  flush_ip3
-            8079              8079  nb_idle
-            807D              807D  idle
-            8081              8081  puts_vga
-            8087              8087  puts_vga_loop
-            8097              8097  puts_vga_done
-            8098              8098  putbx_vga
-            80A8              80A8  putx_vga
-            80AE              80AE  putx_vga_loop
-            80BC              80BC  putx_vga_hexdigit
-            80BE              80BE  putx_vga_putc
-            80D3              80D3  mem_alloc_kernel_page
-            80F4              80F4  create_tss_pair
-            819D              819D  create_tss_pair_fail
-            819E              819E  cpumsg
-            81A2              81A2  int00msg
-            81B2              81B2  int01msg
-            81C3              81C3  int02msg
-            81C8              81C8  int03msg
-            81DE              81DE  int04msg
-            81F2              81F2  int05msg
-            8202              8202  int06msg
-            8212              8212  int07msg
-            8226              8226  int08msg
-            8234              8234  int09msg
-            8251              8251  int10msg
-            825E              825E  int11msg
-            8273              8273  int12msg
-            8280              8280  int13msg
-            829A              829A  int14kmsg
-            82B2              82B2  int14umsg
-            82C7              82C7  int16msg
-            82DB              82DB  int17msg
-            82EC              82EC  int18msg
-            82FB              82FB  int19msg
-            8314              8314  int34msg
-            831E              831E  int35msg
-            8328              8328  int36msg
-            8332              8332  int37msg
-            833C              833C  int38msg
-            8346              8346  int39msg
-            8350              8350  int40msg
-            835A              835A  int41msg
-            8364              8364  int42msg
-            836E              836E  int43msg
-            8378              8378  int44msg
-            8382              8382  int45msg
-            838C              838C  int46msg
-            8396              8396  int47msg
-            83A0              83A0  spuriousmsg
-            83AE              83AE  apicerrmsg
-            83BB              83BB  himsg
-            83BF              83BF  int255msg
-            83D4              83D4  intvmmsg
-            83E0              83E0  irq_err_lno
-            83E4              83E4  irq_init_hardware
-            840D              840D  irq_init_bsp_apic_hardware
-            8455              8455  irq_init_ap_apic_hardware
-            8493              8493  no_lapic_init2
-            8498              8498  int_handler_div0
-            84AC              84AC  int_handler_debug
-            84C0              84C0  int_handler_nmi
-            84D0              84D0  int_handler_brkp
-            84E4              84E4  int_handler_ovrflw
-            84F8              84F8  int_handler_bound
-            850C              850C  int_handler_invop
-            851C              851C  int_handler_devna
-            8520              8520  int_handler_cpsego
-            8530              8530  int_handler_segnp
-            8540              8540  int_handler_stkflt
-            8554              8554  int_handler_show_stack_loop
-            8564              8564  int_handler_gpf
-            8570              8570  int_handler_show_ec_eip
-            8595              8595  int_handler_show_eip
-            85E3              85E3  int_handler_vm_gpf
-            863E              863E  int_handler_vm_normal_return
-            8648              8648  int_handler_pgflt
-            8651              8651  int_handler_pgflt_bad_uaddr
-            8658              8658  int_handler_pgflt_bad_kaddr
-            865D              865D  int_handler_pgflt_msg
-            8670              8670  int_handler_fpuerr
-            8680              8680  int_handler_algnchk
-            8694              8694  int_handler_machchk
-            86A8              86A8  int_handler_simdfpe
-            86B9              86B9  display_irq
-            86DC              86DC  int_handler_timer
-            870C              870C  no_sleepers
-            8714              8714  int_handler_kbd
-            8740              8740  int_handler_hw02
-            875C              875C  int_handler_hw03
-            8778              8778  int_handler_hw04
-            8794              8794  int_handler_hw05
-            87B0              87B0  int_handler_hw06
-            87CC              87CC  int_handler_hw07
-            87DC              87DC  int_handler_hw08
-            87F8              87F8  int_handler_hw09
-            8814              8814  int_handler_hw10
-            8830              8830  int_handler_hw11
-            884C              884C  int_handler_hw12
-            8868              8868  int_handler_hw13
-            8884              8884  int_handler_hw14
-            88A0              88A0  int_handler_hw15
-            88BC              88BC  int_handler_tg_dblflt
-            88D0              88D0  int_handler_tg_invtss
-            88EC              88EC  int_handler_spurious
-            88FC              88FC  int_handler_apicerr
-            890C              890C  wakeup
-            8918              8918  sysent
-            8968              8968  irq_print_msg
-            89B7              89B7  skip_cpumsg
-            89BC              89BC  reboot_on_alt_key
-            89BC              89BC  reboot_on_alt_key_loop
-            89C2              89C2  reboot
-            89D0              89D0  reboot_exit_pmode
-            89EE              89EE  reboot_idt
-            89F4              89F4  irq_types
-            89F8              89F8  irq_setup_table
-            8BF8              8BF8  syscall_klog
-            8C07              8C07  syscall_sipi_vector
-            8C0D              8C0D  syscall_ncpus
-            8C13              8C13  syscall_new_thread
-            8C70              8C70  new_thread_fail
-            8C72              8C72  syscall_sleep
-            8C90              8C90  sleep_loop
-            8CA7              8CA7  syscall_request_pmem_access
-            8CAD              8CAD  map_pmem
-            8CE6              8CE6  map_pmem_have_pgtbl
-            8CFC              8CFC  map_pmem_exit
-            8CFF              8CFF  map_pmem_fail
+            7E1B              7E1B  no_msr
+            7E2D              7E2D  flush_ip1
+            7EFB              7EFB  pgtb0_fill
+            7F10              7F10  flush_ip2
+            7F29              7F29  irq_init
+            7F4A              7F4A  irq_init_task_gate
+            7F86              7F86  no_lapic
+            7FBF              7FBF  no_lapic_init
+            7FDF              7FDF  app_loop
+            7FEC              7FEC  have_an_app
+            8027              8027  init_pgtb1_ro
+            803B              803B  init_pgtb1_rw
+            8072              8072  invl_app
+            808B              808B  non_boot_init
+            80A9              80A9  flush_ip3
+            80D2              80D2  nb_idle
+            8108              8108  idle
+            810C              810C  puts_vga
+            8112              8112  puts_vga_loop
+            8122              8122  puts_vga_done
+            8123              8123  putbx_vga
+            8133              8133  putx_vga
+            8139              8139  putx_vga_loop
+            8147              8147  putx_vga_hexdigit
+            8149              8149  putx_vga_putc
+            815E              815E  mem_alloc_kernel_page
+            81A1              81A1  mem_alloc_kernel_page_fail
+            81A2              81A2  create_tss_pair
+            8238              8238  create_tss_pair_fail
+            8239              8239  cpumsg
+            823D              823D  int00msg
+            824D              824D  int01msg
+            825E              825E  int02msg
+            8263              8263  int03msg
+            8279              8279  int04msg
+            828D              828D  int05msg
+            829D              829D  int06msg
+            82AD              82AD  int07msg
+            82C1              82C1  int08msg
+            82CF              82CF  int09msg
+            82EC              82EC  int10msg
+            82F9              82F9  int11msg
+            830E              830E  int12msg
+            831B              831B  int13msg
+            8335              8335  int14kmsg
+            834D              834D  int14umsg
+            8362              8362  int16msg
+            8376              8376  int17msg
+            8387              8387  int18msg
+            8396              8396  int19msg
+            83AF              83AF  int34msg
+            83B9              83B9  int35msg
+            83C3              83C3  int36msg
+            83CD              83CD  int37msg
+            83D7              83D7  int38msg
+            83E1              83E1  int39msg
+            83EB              83EB  int40msg
+            83F5              83F5  int41msg
+            83FF              83FF  int42msg
+            8409              8409  int43msg
+            8413              8413  int44msg
+            841D              841D  int45msg
+            8427              8427  int46msg
+            8431              8431  int47msg
+            843B              843B  spuriousmsg
+            8449              8449  apicerrmsg
+            8456              8456  himsg
+            845A              845A  int255msg
+            846F              846F  intvmmsg
+            847C              847C  irq_err_lno
+            8480              8480  fault_count
+            8484              8484  ten_secs_counter
+            8488              8488  irq_init_hardware
+            84B1              84B1  irq_init_bsp_apic_hardware
+            84E5              84E5  irq_init_ap_apic_hardware
+            850F              850F  no_lapic_init2
+            8514              8514  int_handler_div0
+            8528              8528  int_handler_debug
+            853C              853C  int_handler_nmi
+            854C              854C  int_handler_brkp
+            8560              8560  int_handler_ovrflw
+            8574              8574  int_handler_bound
+            8588              8588  int_handler_invop
+            8598              8598  int_handler_devna
+            859C              859C  int_handler_cpsego
+            85AC              85AC  int_handler_segnp
+            85BC              85BC  int_handler_stkflt
+            85D0              85D0  int_handler_show_stack_loop
+            85E0              85E0  int_handler_gpf
+            85EC              85EC  int_handler_show_ec_eip
+            8611              8611  int_handler_show_eip
+            865F              865F  int_handler_vm_gpf
+            86BA              86BA  int_handler_vm_normal_return
+            86C4              86C4  int_handler_pgflt
+            86CD              86CD  int_handler_pgflt_bad_uaddr
+            86D4              86D4  int_handler_pgflt_bad_kaddr
+            86D9              86D9  int_handler_pgflt_msg
+            86EC              86EC  int_handler_fpuerr
+            86FC              86FC  int_handler_algnchk
+            8710              8710  int_handler_machchk
+            8724              8724  int_handler_simdfpe
+            8735              8735  display_irq
+            8757              8757  ipi_cpu
+            876C              876C  int_handler_timer
+            878E              878E  dont_reset
+            8793              8793  freeze_for_debug
+            879C              879C  int_handler_kbd
+            87C8              87C8  int_handler_hw02
+            87E4              87E4  int_handler_hw03
+            8800              8800  int_handler_hw04
+            881C              881C  int_handler_hw05
+            8838              8838  int_handler_hw06
+            8854              8854  int_handler_hw07
+            8864              8864  int_handler_hw08
+            8880              8880  int_handler_hw09
+            889C              889C  int_handler_hw10
+            88B8              88B8  int_handler_hw11
+            88D4              88D4  int_handler_hw12
+            88F0              88F0  int_handler_hw13
+            890C              890C  int_handler_hw14
+            8928              8928  int_handler_hw15
+            8944              8944  int_handler_tg_dblflt
+            8960              8960  int_handler_tg_invtss
+            897C              897C  int_handler_spurious
+            898C              898C  int_handler_apicerr
+            899C              899C  wakeup
+            89A8              89A8  sysent
+            8A19              8A19  irq_print_msg
+            8A68              8A68  skip_cpumsg
+            8A6D              8A6D  reboot_on_alt_key
+            8A6E              8A6E  reboot_on_alt_key_loop
+            8A74              8A74  reboot
+            8A82              8A82  reboot_exit_pmode
+            8AA0              8AA0  reboot_idt
+            8AA8              8AA8  irq_types
+            8AAC              8AAC  irq_setup_table
+            8CAC              8CAC  syscall_klog
+            8CBB              8CBB  syscall_sipi_vector
+            8CC1              8CC1  syscall_ncpus
+            8CC7              8CC7  syscall_new_thread
+            8CFF              8CFF  new_thread_fail
+            8D01              8D01  syscall_sleep
+            8D0A              8D0A  sleep_loop
+            8D1C              8D1C  syscall_pause
+            8D1F              8D1F  syscall_resume
+            8D25              8D25  syscall_ipi_all
+            8D2B              8D2B  syscall_request_pmem_access
+            8D31              8D31  map_pmem
+            8D6E              8D6E  map_pmem_have_pgtbl
+            8D88              8D88  map_pmem_exit
+            8D8B              8D8B  map_pmem_fail
 
 ---- Section .data ------------------------------------------------------------
 
 Real              Virtual           Name
-            8D10              8D10  datastart
-            8D10              8D10  gdt
-            8E60              8E60  gdt_end
-            8E60              8E60  ldt1
-            8E78              8E78  ldt1_end
-            8E78              8E78  tss_f08
-            8E94              8E94  tss_f08_cr3
-            8EE0              8EE0  tss_f10
-            8EFC              8EFC  tss_f10_cr3
-            8F48              8F48  tss0
-            8F4C              8F4C  tss0_esp0
-            8F50              8F50  tss0_ss0
-            8F64              8F64  tss0_cr3
-            8F68              8F68  tss0_eip
-            8F70              8F70  tss0_eax
-            8F80              8F80  tss0_esp
-            8F90              8F90  tss0_es
-            8F94              8F94  tss0_cs
-            8F98              8F98  tss0_ss
-            8F9C              8F9C  tss0_ds
-            8FA8              8FA8  tss0_ldt
-            8FB0              8FB0  tss0_end
-            8FB0              8FB0  tss1
-            8FB4              8FB4  tss1_esp0
-            8FCC              8FCC  tss1_cr3
-            8FD0              8FD0  tss1_eip
-            9018              9018  gdtr
-            901E              901E  idtr
-            9020              9020  idtr_addr
-            9024              9024  ncpus
-            9028              9028  next_free_page
-            902C              902C  sleepers
-            9034              9034  pgdirp
-            9038              9038  pgtb0p
-            903C              903C  pgtb1p
-            9040              9040  enabled_lapic
-            9041              9041  dbgwall
+            8DC0              8DC0  datastart
+            8DC0              8DC0  gdt
+            8E18              8E18  gdt_tasks
+            9618              9618  gdt_end
+            9618              9618  tss_f08
+            9634              9634  tss_f08_cr3
+            9680              9680  tss_f10
+            969C              969C  tss_f10_cr3
+            96E8              96E8  tss
+            96E8              96E8  tss0
+            96EC              96EC  tss_esp0
+            96F0              96F0  tss_ss0
+            9704              9704  tss_cr3
+            9704              9704  tss0_cr3
+            9708              9708  tss_eip
+            9710              9710  tss_eax
+            9720              9720  tss_esp
+            9730              9730  tss_es
+            9734              9734  tss_cs
+            9738              9738  tss_ss
+            973C              973C  tss_ds
+            9740              9740  tss_fs
+            9744              9744  tss_gs
+            9750              9750  tss_end
+            9750              9750  tss1
+            9754              9754  tss1_esp0
+            976C              976C  tss1_cr3
+            9770              9770  tss1_eip
+            9788              9788  tss1_esp
+            97B8              97B8  gdtr
+            97BE              97BE  idtr
+            97C0              97C0  idtr_addr
+            97C4              97C4  ncpus
+            97C8              97C8  next_free_page
+            97CC              97CC  sleepers
+            97DC              97DC  pgdirp
+            97E0              97E0  pgtb0p
+            97E4              97E4  pgtb1p
+            97E8              97E8  enabled_lapic
+            9800              9800  wait_addr
+            9840              9840  dbgwall
 
 ---- Section .fill ------------------------------------------------------------
 
 Real              Virtual           Name
-            9050              9050  fill
+            9880              9880  fill
             A000              A000  kend
 

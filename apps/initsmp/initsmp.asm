@@ -28,6 +28,7 @@ header :
     dw  0
     dq  end             ;end-header
     dq  start
+    dq  data
 
 ; r/o data and code - the first 4k -------------------------------
 
@@ -43,7 +44,8 @@ cpunoapic  db "no apic,", 0
 cpulapic   db "lapic,", 0
 cpunolapic db "no lapic", 0
 cpux2apix  db "x2apic,", 0
-cpuvmx     db "vmx-", 0
+cpumwait   db "mwait,",0
+cpuvmx     db "vmx", 0
 cpuavil    db "available", 0
 cpuunavil  db "unavailable", 0
 cpuzzz     db "-", 0
@@ -167,8 +169,8 @@ start :
     pop  ebx
     mov  esi,cpu486
     jz   cpuid_last_puts
-    mov  esi,cpu586
-    call puts
+    ;mov  esi,cpu586
+    ;call puts
     push ebx
 
     xor  eax,eax
@@ -284,10 +286,25 @@ no_x2apic :
     mov  byte [ebx],';'
     inc  ebx
 
-    ; ---- check for vmx support
-
     mov  eax,[feature_ecx]
     call putx
+
+    ; ---- check for mwait support
+
+    mov  eax,[feature_ecx]
+    and  eax,1 << 3         ; mwait feature bit
+    jz   no_mwait
+    push ebx
+    mov  eax,5
+    cpuid
+    shl  ebx,16             ; shift large value to upper 16
+    mov  bx,ax
+    mov  eax,ebx
+    pop  ebx
+    call putx
+no_mwait :
+
+    ; ---- check for vmx support
 
     mov  eax,[feature_ecx]
     and  eax,1 << 5         ; vmx feature bit
@@ -335,6 +352,7 @@ cpuid_end :
 
     times 4096-($-$$) db 0x00
 
+data :
 
 ; r/w data - the second 4k ---------------------------------------
 section .data

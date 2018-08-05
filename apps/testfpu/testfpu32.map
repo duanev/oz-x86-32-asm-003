@@ -8,59 +8,56 @@ Linker script and memory map
 
                 0x0000000000400000                . = 0x400000
 
-hdrsec          0x0000000000400000       0x20
+hdrsec          0x0000000000400000       0x28
  *(hdrsec)
- hdrsec         0x0000000000400000       0x20 testfpu32.o
+ hdrsec         0x0000000000400000       0x28 testfpu32.o
                 0x0000000000400000                app_header
 
 .rodata
  *(.rodata)
 
-.eh_frame       0x0000000000400020       0x6c
- .eh_frame      0x0000000000400020       0x6c testfpu32.o
+.eh_frame       0x0000000000400028       0x6c
+ .eh_frame      0x0000000000400028       0x6c testfpu32.o
 
-.text           0x0000000000400090       0x3a
+.text           0x00000000004000a0       0x3a
  *(.text)
- .text          0x0000000000400090       0x1b testfpu32.o
-                0x0000000000400090                _start
-                0x00000000004000a0                print_double
- *fill*         0x00000000004000ab        0x5 
- .text          0x00000000004000b0       0x1a sum32.o
-                0x00000000004000b0                sum
+ .text          0x00000000004000a0       0x1b testfpu32.o
+                0x00000000004000a0                _start
+                0x00000000004000b0                print_double
+ *fill*         0x00000000004000bb        0x5 
+ .text          0x00000000004000c0       0x1a sum32.o
+                0x00000000004000c0                sum
 
-.text.unlikely  0x00000000004000ca        0x0
- .text.unlikely
-                0x00000000004000ca        0x0 testfpu32.o
-
-.text.startup   0x00000000004000d0       0x32
- .text.startup  0x00000000004000d0       0x32 testfpu32.o
-                0x00000000004000d0                main
+.text.startup   0x00000000004000e0       0x32
+ .text.startup  0x00000000004000e0       0x32 testfpu32.o
+                0x00000000004000e0                main
                 0x0000000000401000                . = 0x401000
+                0x0000000000401000                _data = .
 
-.data           0x0000000000401000       0x18
+.data           0x0000000000401000       0x28
  *(.data)
- .data          0x0000000000401000       0x18 testfpu32.o
+ .data          0x0000000000401000       0x28 testfpu32.o
                 0x0000000000401000                vals
 
-.bss            0x0000000000401018        0x0
-                0x0000000000401018                sbss = .
+.bss            0x0000000000401028        0x0
+                0x0000000000401028                sbss = .
  *(COMMON)
  *(.bss)
- .bss           0x0000000000401018        0x0 testfpu32.o
-                0x0000000000401018                ebss = .
+ .bss           0x0000000000401028        0x0 testfpu32.o
+                0x0000000000401028                ebss = .
 
-endsec          0x0000000000401018      0xfe8
+endsec          0x0000000000401028      0xfd8
  *(endsec)
-                0x0000000000401018        0x1 BYTE 0x0
+                0x0000000000401028        0x1 BYTE 0x0
                 0x0000000000402000                . = ALIGN (0x1000)
- *fill*         0x0000000000401019      0xfe7 
+ *fill*         0x0000000000401029      0xfd7 
                 0x0000000000402000                _end = .
 LOAD testfpu32.o
 LOAD sum32.o
 OUTPUT(testfpu32 binary)
 
-.comment        0x0000000000000000       0x12
- .comment       0x0000000000000000       0x12 testfpu32.o
+.comment        0x0000000000000000       0x1b
+ .comment       0x0000000000000000       0x1b testfpu32.o
 
 .note.GNU-stack
                 0x0000000000000000        0x0

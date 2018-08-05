@@ -22,6 +22,7 @@ SECTIONS{
     }
 
     . = 0x401000;
+    _data = .;
 
     .data : {
         *(.data)

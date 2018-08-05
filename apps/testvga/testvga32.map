@@ -8,80 +8,84 @@ Linker script and memory map
 
                 0x0000000000400000                . = 0x400000
 
-hdrsec          0x0000000000400000       0x20
+hdrsec          0x0000000000400000       0x28
  *(hdrsec)
- hdrsec         0x0000000000400000       0x20 testvga32.o
+ hdrsec         0x0000000000400000       0x28 testvga32.o
                 0x0000000000400000                app_header
 
-.rodata         0x0000000000400020       0x1a
+.rodata         0x0000000000400028       0x1a
  *(.rodata)
- .rodata        0x0000000000400020       0x1a testvga32.o
-                0x0000000000400020                hblip
-                0x0000000000400028                vblip
+ .rodata        0x0000000000400028       0x1a testvga32.o
+                0x0000000000400028                hblip
+                0x0000000000400030                vblip
 
-.eh_frame       0x000000000040003c      0x2a0
- .eh_frame      0x000000000040003c      0x2a0 testvga32.o
+.eh_frame       0x0000000000400044      0x304
+ .eh_frame      0x0000000000400044      0x304 testvga32.o
 
-.text           0x00000000004002dc      0x7b1
+.text           0x0000000000400348      0x7ec
  *(.text)
- .text          0x00000000004002dc      0x7b1 testvga32.o
-                0x00000000004002dc                syscall3
-                0x0000000000400301                syscall2
-                0x0000000000400323                syscall1
-                0x0000000000400342                syscall0
-                0x000000000040035e                sleep
-                0x0000000000400375                new_thread
-                0x00000000004003c6                map_vga_memory
-                0x00000000004003e3                pokech
-                0x0000000000400417                peekch
-                0x000000000040043e                pokehstr
-                0x0000000000400489                pokehint
-                0x000000000040057b                pokevstr
-                0x00000000004005c6                box
-                0x00000000004006a7                hcollision
-                0x0000000000400753                vcollision
-                0x00000000004007ff                hthread
-                0x00000000004008ba                vthread
-                0x000000000040096b                main
-                0x0000000000400a7c                _start
+ .text          0x0000000000400348      0x7ec testvga32.o
+                0x0000000000400348                syscall3
+                0x000000000040036d                syscall2
+                0x000000000040038f                syscall1
+                0x00000000004003ae                syscall0
+                0x00000000004003ca                sleep
+                0x00000000004003e1                pause
+                0x00000000004003f4                resume
+                0x0000000000400407                start_threads
+                0x000000000040041a                new_thread
+                0x000000000040046b                map_vga_memory
+                0x0000000000400488                pokech
+                0x00000000004004c2                peekch
+                0x00000000004004e9                pokehstr
+                0x0000000000400534                pokehint
+                0x0000000000400626                pokevstr
+                0x0000000000400671                box
+                0x0000000000400752                hcollision
+                0x00000000004007fe                vcollision
+                0x00000000004008aa                hthread
+                0x0000000000400981                vthread
+                0x0000000000400a2c                main
+                0x0000000000400b23                _start
                 0x0000000000401000                . = 0x401000
+                0x0000000000401000                _data = .
 
-.data           0x0000000000401000     0x1000
+.data           0x0000000000401000     0x2000
  *(.data)
- .data          0x0000000000401000     0x1000 testvga32.o
+ .data          0x0000000000401000     0x2000 testvga32.o
                 0x0000000000401000                stack
 
-.bss            0x0000000000402000        0x0
-                0x0000000000402000                sbss = .
+.bss            0x0000000000403000        0x0
+                0x0000000000403000                sbss = .
  *(COMMON)
  *(.bss)
- .bss           0x0000000000402000        0x0 testvga32.o
-                0x0000000000402000                ebss = .
+ .bss           0x0000000000403000        0x0 testvga32.o
+                0x0000000000403000                ebss = .
 
-endsec          0x0000000000402000        0x0
+endsec          0x0000000000403000        0x0
  *(endsec)
-                0x0000000000402000                _end = .
+                0x0000000000403000                _end = .
 LOAD testvga32.o
 OUTPUT(testvga32 binary)
 
-.debug_info     0x0000000000000000      0x7a9
- .debug_info    0x0000000000000000      0x7a9 testvga32.o
+.debug_info     0x0000000000000000      0x7fd
+ .debug_info    0x0000000000000000      0x7fd testvga32.o
 
-.debug_abbrev   0x0000000000000000      0x212
- .debug_abbrev  0x0000000000000000      0x212 testvga32.o
+.debug_abbrev   0x0000000000000000      0x255
+ .debug_abbrev  0x0000000000000000      0x255 testvga32.o
 
 .debug_aranges  0x0000000000000000       0x20
  .debug_aranges
                 0x0000000000000000       0x20 testvga32.o
 
-.debug_line     0x0000000000000000      0x17c
- .debug_line    0x0000000000000000      0x17c testvga32.o
+.debug_line     0x0000000000000000      0x18f
+ .debug_line    0x0000000000000000      0x18f testvga32.o
 
-.debug_str      0x0000000000000000      0x2be
- .debug_str     0x0000000000000000      0x2be testvga32.o
+.debug_str      0x0000000000000000      0x2fb
+ .debug_str     0x0000000000000000      0x2fb testvga32.o
 
-.comment        0x0000000000000000       0x12
- .comment       0x0000000000000000       0x12 testvga32.o
+.comment        0x0000000000000000       0x1b
+ .comment       0x0000000000000000       0x1b testvga32.o
 
 .note.GNU-stack
                 0x0000000000000000        0x0

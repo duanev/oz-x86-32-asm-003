@@ -1,6 +1,6 @@
 
 
-double vals[] = {1.1, 2.2, 3.3};
+double vals[] = {1.0, 2.0, 4.0, -1.5, -1.375};
 
 double sum(double * array, int len);
 
@@ -8,6 +8,9 @@ double sum(double * array, int len);
 void __attribute__ ((noinline))
 print_double(double d)
 {
+    // yeah, there's likely no vga
+    // so just store the value.
+    // you are single-stepping this right?
     vals[0] = d;
 }
 

@@ -1,6 +1,6 @@
 
-CFLAGS64 = -m64 -DMACHINE_WORD_SIZE=64
-CFLAGS32 = -m32 -DMACHINE_WORD_SIZE=32
+CFLAGS64 = -m64 -DMACHINE_WORD_SIZE=64 -fno-pic
+CFLAGS32 = -m32 -DMACHINE_WORD_SIZE=32 -fno-pic
 CFLAGS = -O2
 
 # gcc's -g debug option causes objdump -S to include
